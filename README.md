@@ -71,3 +71,17 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 │   array_size = (2304, 816, 17, 44)
 └   expected_bytes = 47941632
 ```
+
+# Reading HDF5 files in Julia
+
+# Reading HDF5 files in MATLAB
+
+# Reading HDF5 files in FIJI
+
+To read HDF5 files in FIJI use HDF5_Vibez package:
+https://github.com/fiji/HDF5_Vibez/
+
+FIJI HDF5 Vibez Plugin opening `resave_uint12_stack_as_uint16_hdf5`
+![FIJI HDF5 Vibez Plugin opening `resave_uint12_stack_as_uint16_hdf5`](images/fiji_hdf5_vibez_uint16.png)
+
+You can select multiple timepoints to combine them as a time series.
