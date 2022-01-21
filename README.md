@@ -6,7 +6,10 @@ Utilities for the Matrix Microscope.
 
 This is currently a private repository. It may be easier to first `git clone` this repository with authentication, then use `import Pkg; Pkg.add(path="c:/path/to/MatrixMicroscopeUtils")`. You can use `/` even on Windows.
 
-If you have Github authentication, you may be able to add this via `] add https://github.com/JaneliaSciComp/MatrixMicroscopeUtils.git#main`
+If you have Github authentication, you may be able to add this via the following command.
+```
+] add https://github.com/JaneliaSciComp/MatrixMicroscopeUtils.git#main
+```
 
 ## `resave_uint12_stack_as_uint16_hdf5`
 
