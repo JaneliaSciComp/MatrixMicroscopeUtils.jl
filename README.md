@@ -71,8 +71,6 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 │   array_size = (2304, 816, 17, 44)
 └   expected_bytes = 47941632
 ```
-# Reading HDF5 files in Python
-
 # Reading HDF5 files in Julia
 
 HDF5 files can be read in Julia via HDF5.jl.
@@ -223,6 +221,109 @@ julia> md.sampling_XYZ_um.Y
 
 julia> md.sampling_XYZ_um.Z
 5.0
+```
+
+# Reading HDF5 files in Python
+
+```python
+In [1]: import h5py
+
+In [2]: h5f = h5py.File("TM0000000_CM5_uint16.h5", "r")
+
+In [3]: cam5 = h5f["CM5"]
+
+In [4]: list(cam5.attrs.keys())
+Out[4]:
+['bit_depth',
+ 'cam',
+ 'channel',
+ 'data_header',
+ 'defect_correction',
+ 'detection_filter',
+ 'dimensions_XYZ',
+ 'experiment_notes',
+ 'frame_exposure_time_ms',
+ 'laser_power',
+ 'planes',
+ 'roi_XY',
+ 'sampling_XYZ_um',
+ 'software_version',
+ 'specimen_name',
+ 'stack_direction',
+ 'tile_XYZ_um',
+ 'timepoints',
+ 'version',
+ 'wavelength_nm',
+ 'xml_metadata']
+
+In [5]: cam5.attrs["data_header"]
+Out[5]: b'AgaroseBeads_561nm15pct_17Planes5umStep'
+
+In [6]: cam5.attrs["wavelength_nm"]
+Out[6]: b'561'
+
+In [7]: list(cam5.keys())
+Out[7]:
+['TM0000000',
+ 'TM0000001',
+ 'TM0000002',
+ 'TM0000003',
+ 'TM0000004',
+ 'TM0000005',
+ 'TM0000006',
+ 'TM0000007',
+ 'TM0000008',
+ 'TM0000009',
+ 'TM0000010',
+ 'TM0000011',
+ 'TM0000012',
+ 'TM0000013',
+ 'TM0000014',
+ 'TM0000015',
+ 'TM0000016',
+ 'TM0000017',
+ 'TM0000018',
+ 'TM0000019',
+ 'TM0000020',
+ 'TM0000021',
+ 'TM0000022',
+ 'TM0000023',
+ 'TM0000024',
+ 'TM0000025',
+ 'TM0000026',
+ 'TM0000027',
+ 'TM0000028',
+ 'TM0000029',
+ 'TM0000030',
+ 'TM0000031',
+ 'TM0000032',
+ 'TM0000033',
+ 'TM0000034',
+ 'TM0000035',
+ 'TM0000036',
+ 'TM0000037',
+ 'TM0000038',
+ 'TM0000039',
+ 'TM0000040',
+ 'TM0000041',
+ 'TM0000042',
+ 'TM0000043']
+
+In [8]: cam5["TM0000000"]
+Out[8]: <HDF5 dataset "TM0000000": shape (17, 816, 2304), type "<u2">
+
+In [9]: cam5["TM0000000"][1,:,:]
+Out[9]:
+array([[222, 204, 250, ..., 216, 272, 203],
+       [220, 210, 200, ..., 208, 219, 209],
+       [208, 222, 214, ..., 205, 229, 226],
+       ...,
+       [284, 266, 231, ..., 192, 193, 199],
+       [349, 292, 260, ..., 192, 188, 188],
+       [333, 279, 278, ..., 187, 192, 196]], dtype=uint16)
+
+In [10]: type(cam5["TM0000000"][1,:,:])
+Out[10]: numpy.ndarray
 ```
 
 # Reading HDF5 files in MATLAB
