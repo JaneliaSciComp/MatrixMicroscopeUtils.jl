@@ -3,7 +3,17 @@ uuid = "24e7d267-5f12-4ea2-b3b8-41e0e0cfae6c"
 authors = ["Mark Kittisopikul <kittisopikulm@janelia.hhmi.org> and contributors"]
 version = "0.1.0"
 
+[deps]
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
+Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+UInt12Arrays = "c28d94ed-d5b6-4a5f-906b-ac5b0f674341"
+
 [compat]
+HDF5 = "0.15.7"
+LightXML = "0.9"
+UInt12Arrays = "0.2"
 julia = "1"
 
 [extras]
