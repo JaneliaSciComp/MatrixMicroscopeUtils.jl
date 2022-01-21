@@ -71,6 +71,7 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 │   array_size = (2304, 816, 17, 44)
 └   expected_bytes = 47941632
 ```
+# Reading HDF5 files in Python
 
 # Reading HDF5 files in Julia
 
