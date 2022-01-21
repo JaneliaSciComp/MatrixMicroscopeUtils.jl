@@ -41,6 +41,18 @@ mutable struct MatrixMetadata
     MatrixMetadata() = new()
 end
 
+function Base.show(io::IO, ::MIME"text/plain", md::MatrixMetadata)
+    println(io, "MatrixMetadata with the following field values.")
+    names = fieldnames(MatrixMetadata)
+    #max_field_length = maximum([length(string(n)) for n in names])
+    #padding = max_field_length + 4
+    for f in names
+        v = getfield(md, f)
+        fn = string(f)
+        @printf(io, "%26s: %s\n", fn, v)
+    end
+end
+
 
 raw"""
     resave_uint12_stack_as_uint16_hdf5(filename, [array_size]; h5_filename, split_timepoints, metadata, ...)
