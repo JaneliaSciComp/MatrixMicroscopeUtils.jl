@@ -111,6 +111,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
                                             array_size;
                                             h5_filename = rename_file_as_h5(filename; suffix="uint16"),
                                             split_timepoints::Bool = true,
+                                            timepoint_range = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
                                             kwargs...)
     A = Mmap.mmap(filename, Vector{UInt8})
@@ -138,6 +139,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
         t = parse(Int, first(m.captures))
         parent = create_group(f, "CM" * last(m.captures))
     end
+    timepoint_range = max(t, first(timepoint_range)):min(t+size(A16,4)-1, last(timepoint_range))
 
     try
         # Capture metadata and copy it into the HDF5 file
@@ -179,9 +181,9 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
         end
         if split_timepoints
             # Each timepoint will be in a separate dataset
+            last_t = last(timepoint_range)
             for slice in eachslice(A16, dims = 4)
                 dataset_name = @sprintf "TM%07d" t
-                t = t + 1
                 d, dtype = create_dataset(parent, dataset_name, slice; kwargs...)
                 write_dataset(d, dtype, slice)
                 if metadata !== nothing
@@ -189,9 +191,17 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
                     s = metadata.sampling_XYZ_um
                     write_attribute(d, "element_size_um", [s.Z, s.Y, s.X])
                 end
+                t = t + 1
+                if t > last_t
+                    break;
+                end
             end
         else
             # There will be one dataset with the name matching the filename
+            data = A16
+            if size(data, 4) != length(timepoint_range)
+                data = data[:, :, :, begin : begin+length(timepoint_range-1)]
+            end
             d, dtype = create_dataset(parent, dataset_name, A16; kwargs...)
             if metadata !== nothing
                 # HDF5 Vibez Plugin for FIJI
