@@ -5,6 +5,8 @@ using UInt12Arrays
 using Mmap
 using LightXML
 using Printf
+using ArgParse
+using Distributed
 
 export MatrixMetadata
 export resave_uint12_stack_as_uint16_hdf5
@@ -360,11 +362,11 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 1, chunk = (128, 128, 1), kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
-    for stack in in_stacks
+    @sync @distributed for stack in in_stacks
         try
             stack_full_path = joinpath(in_path, stack)
             md = metadata(stack_full_path)
@@ -374,7 +376,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, deflate, chunk, kwargs...)
+                        h5_filename, metadata=md, kwargs...)
                 end
             elseif md.bit_depth == 16
                 h5_filename = replace(stack, ".stack" => ".h5")
@@ -382,7 +384,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, deflate, chunk, kwargs...)
+                        h5_filename, metadata=md, kwargs...)
                 end
             else
                 error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
@@ -393,20 +395,49 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 
     end
 end
 
-function batch_resave_stacks_as_hdf5(; deflate = 1, chunk = (128, 128, 32))
-    mock = false
-    if ARGS[1] == "-n" || ARGS[1] == "--mock"
-        mock = true
-        popfirst!(ARGS)
-    end
-    @assert length(ARGS) == 2 raw"""
-    Incorrect number of arguments.
+function batch_resave_stacks_as_hdf5(; kwargs...)
+    s = ArgParseSettings(
+        prog="scripts/batch_resave.jl",
+        description="Resave a raw .stack file as a HDF5 file"
+    )
 
-    Usage: julia -e 'using MatrixMicroscopeUtils; batch_resave_stacks_as_hdf5()' -- [-n | --mock] in_path out_path
-    """
-    if length(ARGS) == 2
-        batch_resave_stacks_as_hdf5(ARGS[1], ARGS[2]; mock, deflate, chunk)
+    @add_arg_table! s begin
+        "--mock", "-n"
+            help = "Flag for a mock run. Do nothing."
+            action = :store_true
+        "--deflate"
+            help = "Deflate compression level"
+            arg_type = Int
+            default = 0
+        "--shuffle"
+            help = "Do byte shuffle"
+            action = :store_true
+        "--chunk"
+            help = "Chunk size"
+            arg_type = Tuple{Int, Int, Int}
+            default = (128, 128, 32)
+        "in_path"
+            help = "Directory with .stack files"
+            required = true
+        "out_path"
+            help = "Directory to store .h5 files"
+            required = true
     end
+
+    a = parse_args(ARGS, s)
+    mock = a["mock"]
+    shuffle = a["shuffle"] ? () : (shuffle = (),)
+    deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
+    chunk = a["chunk"]
+
+    @debug a
+
+    batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"]; mock, chunk, shuffle..., deflate..., kwargs...)
+end
+
+function ArgParse.parse_item(::Type{Tuple{Int, Int, Int}}, x::AbstractString)
+    strs = split(x, ",")
+    (parse.(Int, strs)...,)
 end
 
 precompile(batch_resave_stacks_as_hdf5, ())

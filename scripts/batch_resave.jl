@@ -4,4 +4,4 @@ using Pkg
 Pkg.activate(dirname(@__DIR__))
 
 using MatrixMicroscopeUtils
-batch_resave_stacks_as_hdf5(; deflate=1, chunk=(128, 128, 32))
+batch_resave_stacks_as_hdf5()
