@@ -235,22 +235,31 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
                                    kwargs...)
     @info "Saving file as $h5_filename"
     f = h5open(h5_filename, "w")
-
-    # Check if the file name format is "TM[ttttttt]_CM[c]"
-    # where ttttttt is the time point and c is the camera number
-    m = match(r"TM(\d+)_CM(\d+)", dataset_name)
-    parent = f
-    t = 0
-    if m !== nothing
-        # Create a dataset named after the timepoint
-        dataset_name = "TM" * first(m.captures)
-        t = parse(Int, first(m.captures))
-        # Create a group named after the camera
-        parent = create_group(f, "CM" * last(m.captures))
-    end
-    timepoint_range = max(t, first(timepoint_range)):min(t+size(A16,4)-1, last(timepoint_range))
-
     try
+        # Check if the file name format is "TM[ttttttt]_CM[c]"
+        # where ttttttt is the time point and c is the camera number
+        m = match(r"TM(\d+)_CM(\d+)", dataset_name)
+        parent = f
+        t = 0
+        if m !== nothing
+            # Create a dataset named after the timepoint
+            dataset_name = "TM" * first(m.captures)
+            t = parse(Int, first(m.captures))
+            # Create a group named after the camera
+            parent = create_group(f, "CM" * last(m.captures))
+        end
+        timepoint_range = max(t, first(timepoint_range)):min(t+size(A16,4)-1, last(timepoint_range))
+
+        # Capture metadata and copy it into the HDF5 file
+        if metadata isa MatrixMetadata
+            # Otherwise we can try to rebuild the XML from the MatrixMetadata structure
+            write_attribute(parent, "xml_metadata", metadata.xml)
+            metadata_dict = parse_info_xml_to_dict(LightXML.parse_string(metadata.xml))
+            for (key,value) in metadata_dict
+                write_attribute(parent, key, value)
+            end
+        end
+
         if split_timepoints
             # Each timepoint will be in a separate dataset
             last_t = last(timepoint_range)
@@ -258,7 +267,7 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
                 dataset_name = @sprintf "TM%07d" t
                 d, dtype = create_dataset(parent, dataset_name, slice; kwargs...)
                 write_dataset(d, dtype, slice)
-                if metadata !== nothing
+                if metadata isa MatrixMetadata
                     # HDF5 Vibez Plugin for FIJI
                     s = metadata.sampling_XYZ_um
                     write_attribute(d, "element_size_um", [s.Z, s.Y, s.X])
