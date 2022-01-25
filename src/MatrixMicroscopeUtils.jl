@@ -366,6 +366,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
+    @debug kwargs
     @sync @distributed for stack in in_stacks
         try
             stack_full_path = joinpath(in_path, stack)
@@ -426,18 +427,23 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
 
     a = parse_args(ARGS, s)
     mock = a["mock"]
-    shuffle = a["shuffle"] ? () : (shuffle = (),)
+    shuffle = a["shuffle"] ? (shuffle = (),) : ()
     deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
-    chunk = a["chunk"]
+    chunk = a["chunk"] == (0,0,0) ? () : (chunk = a["chunk"],)
 
     @debug a
 
-    batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"]; mock, chunk, shuffle..., deflate..., kwargs...)
+    batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"]; mock, chunk..., shuffle..., deflate..., kwargs...)
 end
 
 function ArgParse.parse_item(::Type{Tuple{Int, Int, Int}}, x::AbstractString)
-    strs = split(x, ",")
-    (parse.(Int, strs)...,)
+    strs = split(x, ","; keepempty = false)
+    if isempty(strs)
+        return (0,0,0)
+    else
+        @assert length(strs) == 3 "chunk must consist of three comma-separated integers"
+        return (parse.(Int, strs)...,)
+    end
 end
 
 precompile(batch_resave_stacks_as_hdf5, ())
