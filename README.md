@@ -97,12 +97,13 @@ PS C:\Users\kittisopikulm\Documents\Julia> cd .\MatrixMicroscopeUtils.jl\
 
 PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\install.jl
   Activating environment at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
-    Updating registry at `C:\Users\kittisopikulm\.julia\registries\General`
     Updating `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
+  [c7e460c6] + ArgParse v1.1.4
   [f67ccb44] + HDF5 v0.15.7
   [9c8b4983] + LightXML v0.9.0
   [c28d94ed] + UInt12Arrays v0.2.0
     Updating `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Manifest.toml`
+  [c7e460c6] + ArgParse v1.1.4
   [c3b6d118] + BitIntegers v0.2.6
   [a74b3585] + Blosc v0.7.2
   [34da2185] + Compat v3.41.0
@@ -112,6 +113,7 @@ PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scri
   [21216c6a] + Preferences v1.2.3
   [ae029012] + Requires v1.3.0
   [fdea26ae] + SIMD v3.4.0
+  [b718987f] + TextWrap v1.0.1
   [c28d94ed] + UInt12Arrays v0.2.0
   [0b7ba130] + Blosc_jll v1.21.1+0
   [0234f1f7] + HDF5_jll v1.12.1+0
@@ -130,6 +132,7 @@ PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scri
   [b77e0a4c] + InteractiveUtils
   [b27032c2] + LibCURL
   [76f85450] + LibGit2
+  [8f399da3] + Libdl
   [37e2e46d] + LinearAlgebra
   [56ddb016] + Logging
   [d6f4376e] + Markdown
@@ -157,6 +160,26 @@ PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scri
   [83775a58] + Zlib_jll
   [8e850ede] + nghttp2_jll
   [3f19e933] + p7zip_jll
+
+PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\batch_resave.jl -h
+  Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+usage: scripts/batch_resave.jl [-n] [--deflate DEFLATE] [--shuffle]
+                        [--chunk CHUNK] [-h] in_path out_path
+
+Resave a raw .stack file as a HDF5 file
+
+positional arguments:
+  in_path            Directory with .stack files
+  out_path           Directory to store .h5 files
+
+optional arguments:
+  -n, --mock         Flag for a mock run. Do nothing.
+  --deflate DEFLATE  Deflate compression level (type: Int64, default:
+                     0)
+  --shuffle          Do byte shuffle
+  --chunk CHUNK      Chunk size (type: Tuple{Int64, Int64, Int64},
+                     default: (128, 128, 32))
+  -h, --help         show this help message and exit
 
 PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\batch_resave.jl \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054 \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5
   Activating environment at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
@@ -237,6 +260,237 @@ Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM00000
 [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM6.h5
 
 ...
+
+PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia -p48 .\scripts\batch_resave.jl --deflate=1 --shuffle --chunk=128,128,50 \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054 \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5
+  Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 2:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 3:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 39:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 49:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 23:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 27:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 33:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 19:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 9:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 16:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 32:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 18:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 47:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 11:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 7:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 15:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 28:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 31:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 43:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 4:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 10:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 14:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 20:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 13:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 46:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 8:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 34:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 21:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 37:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 12:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 44:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 45:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 29:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 38:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 6:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 22:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 26:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 40:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 42:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 41:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 25:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 5:      Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 36:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 24:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 30:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 48:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 17:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 35:     Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
+      From worker 7:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM6.h5
+      From worker 3:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM2.h5
+      From worker 31:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM3.h5
+      From worker 23:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM4.h5
+      From worker 13:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM3.h5
+      From worker 9:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM8.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM8.h5
+      From worker 19:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM9.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM9.h5
+      From worker 17:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM7.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM7.h5
+      From worker 11:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM1.h5
+      From worker 16:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM6.h5
+      From worker 15:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM5.h5
+      From worker 10:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM9.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM9.h5
+      From worker 14:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM4.h5
+      From worker 18:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM8.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM8.h5
+      From worker 29:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM1.h5
+      From worker 21:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM2.h5
+      From worker 27:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM8.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM8.h5
+      From worker 37:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM9.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM9.h5
+      From worker 30:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM2.h5
+      From worker 5:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM4.h5
+      From worker 33:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM5.h5
+      From worker 28:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM9.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM9.h5
+      From worker 32:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM4.h5
+      From worker 24:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM5.h5
+      From worker 4:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM3.h5
+      From worker 8:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM7.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM7.h5
+      From worker 35:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM7.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM7.h5
+      From worker 20:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM1.h5
+      From worker 7:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 7:    │   array_size = (2304, 816, 50, 11)
+      From worker 7:    └   expected_bytes = 188006400
+      From worker 7:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM6.h5
+      From worker 34:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM6.h5
+      From worker 36:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000033_CM8.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM8.h5
+      From worker 13:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 13:   │   array_size = (2304, 816, 50, 11)
+      From worker 13:   └   expected_bytes = 188006400
+      From worker 26:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM7.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM7.h5
+      From worker 13:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM3.h5
+      From worker 2:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM1.h5
+      From worker 25:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM6.h5
+      From worker 12:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM2.h5
+      From worker 23:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 23:   │   array_size = (2304, 816, 50, 11)
+      From worker 23:   └   expected_bytes = 188006400
+      From worker 31:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 31:   │   array_size = (2304, 816, 50, 11)
+      From worker 31:   └   expected_bytes = 188006400
+      From worker 23:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM4.h5
+      From worker 31:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM3.h5
+      From worker 6:    Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM5.h5
+      From worker 3:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 3:    │   array_size = (2304, 816, 50, 11)
+      From worker 3:    └   expected_bytes = 188006400
+      From worker 3:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM2.h5
+      From worker 17:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 17:   │   array_size = (2304, 816, 50, 11)
+      From worker 17:   └   expected_bytes = 188006400
+      From worker 17:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM7.h5
+      From worker 19:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 19:   │   array_size = (2304, 816, 50, 11)
+      From worker 19:   └   expected_bytes = 188006400
+      From worker 19:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM9.h5
+      From worker 11:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 11:   │   array_size = (2304, 816, 50, 11)
+      From worker 11:   └   expected_bytes = 188006400
+      From worker 11:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM1.h5
+      From worker 15:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 15:   │   array_size = (2304, 816, 50, 11)
+      From worker 15:   └   expected_bytes = 188006400
+      From worker 15:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM5.h5
+      From worker 16:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 16:   │   array_size = (2304, 816, 50, 11)
+      From worker 16:   └   expected_bytes = 188006400
+      From worker 16:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM6.h5
+      From worker 29:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 29:   │   array_size = (2304, 816, 50, 11)
+      From worker 29:   └   expected_bytes = 188006400
+      From worker 29:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM1.h5
+      From worker 14:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 14:   │   array_size = (2304, 816, 50, 11)
+      From worker 14:   └   expected_bytes = 188006400
+      From worker 14:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM4.h5
+      From worker 21:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 21:   │   array_size = (2304, 816, 50, 11)
+      From worker 21:   └   expected_bytes = 188006400
+      From worker 21:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM2.h5
+      From worker 9:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 9:    │   array_size = (2304, 816, 50, 11)
+      From worker 9:    └   expected_bytes = 188006400
+      From worker 9:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM8.h5
+      From worker 18:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 18:   │   array_size = (2304, 816, 50, 11)
+      From worker 18:   └   expected_bytes = 188006400
+      From worker 18:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM8.h5
+      From worker 10:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 10:   │   array_size = (2304, 816, 50, 11)
+      From worker 10:   └   expected_bytes = 188006400
+      From worker 10:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM9.h5
+      From worker 22:   Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000022_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM3.h5
+      From worker 30:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 30:   │   array_size = (2304, 816, 50, 11)
+      From worker 30:   └   expected_bytes = 188006400
+      From worker 30:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM2.h5
+      From worker 27:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 27:   │   array_size = (2304, 816, 50, 11)
+      From worker 27:   └   expected_bytes = 188006400
+      From worker 27:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM8.h5
+      From worker 5:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 5:    │   array_size = (2304, 816, 50, 11)
+      From worker 5:    └   expected_bytes = 188006400
+      From worker 5:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM4.h5
+      From worker 37:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 37:   │   array_size = (2304, 816, 50, 11)
+      From worker 37:   └   expected_bytes = 188006400
+      From worker 33:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 33:   │   array_size = (2304, 816, 50, 11)
+      From worker 33:   └   expected_bytes = 188006400
+      From worker 37:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM9.h5
+      From worker 33:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM5.h5
+      From worker 28:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 28:   │   array_size = (2304, 816, 50, 11)
+      From worker 28:   └   expected_bytes = 188006400
+      From worker 28:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM9.h5
+      From worker 4:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 4:    │   array_size = (2304, 816, 50, 11)
+      From worker 4:    └   expected_bytes = 188006400
+      From worker 32:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 32:   │   array_size = (2304, 816, 50, 11)
+      From worker 32:   └   expected_bytes = 188006400
+      From worker 4:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM3.h5
+      From worker 32:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM4.h5
+      From worker 24:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 24:   │   array_size = (2304, 816, 50, 11)
+      From worker 24:   └   expected_bytes = 188006400
+      From worker 24:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM5.h5
+      From worker 36:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 36:   │   array_size = (2304, 816, 50, 11)
+      From worker 36:   └   expected_bytes = 188006400
+      From worker 36:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM8.h5
+      From worker 35:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 35:   │   array_size = (2304, 816, 50, 11)
+      From worker 35:   └   expected_bytes = 188006400
+      From worker 35:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM7.h5
+      From worker 20:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 20:   │   array_size = (2304, 816, 50, 11)
+      From worker 20:   └   expected_bytes = 188006400
+      From worker 20:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM1.h5
+      From worker 34:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 34:   │   array_size = (2304, 816, 50, 11)
+      From worker 34:   └   expected_bytes = 188006400
+      From worker 34:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000033_CM6.h5
+      From worker 26:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 26:   │   array_size = (2304, 816, 50, 11)
+      From worker 26:   └   expected_bytes = 188006400
+      From worker 26:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM7.h5
+      From worker 8:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 8:    │   array_size = (2304, 816, 50, 11)
+      From worker 8:    └   expected_bytes = 188006400
+      From worker 8:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM7.h5
+      From worker 2:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 2:    │   array_size = (2304, 816, 50, 11)
+      From worker 2:    └   expected_bytes = 188006400
+      From worker 2:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM1.h5
+      From worker 25:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 25:   │   array_size = (2304, 816, 50, 11)
+      From worker 25:   └   expected_bytes = 188006400
+      From worker 12:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 12:   │   array_size = (2304, 816, 50, 11)
+      From worker 12:   └   expected_bytes = 188006400
+      From worker 25:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM6.h5
+      From worker 12:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM2.h5
+      From worker 6:    ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 6:    │   array_size = (2304, 816, 50, 11)
+      From worker 6:    └   expected_bytes = 188006400
+      From worker 6:    [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM5.h5
+      From worker 22:   ┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+      From worker 22:   │   array_size = (2304, 816, 50, 11)
+      From worker 22:   └   expected_bytes = 188006400
+      From worker 22:   [ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000022_CM3.h5
 ```
 
 # Reading HDF5 files in Julia
