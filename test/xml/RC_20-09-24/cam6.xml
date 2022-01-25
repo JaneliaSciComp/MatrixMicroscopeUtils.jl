@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<push_config version="1.0">
+<info software_version="1.0.02465" />
+<info data_header="test" />
+<info specimen_name="test" />
+<info tile_XYZ_um="X=70.000_Y=0.000_Z=-70.000" />
+<info sampling_XYZ_um="0.34375, 0.34375, 2.500" />
+<info roi_XY_cam6="0_4608_888_1704" />
+<info wavelength_nm="532" />
+<info laser_power="0.00%_0.00mW" />
+<info exposure_time_ms="2.00" />
+<info detection_filter="test" />
+<info dimensions_XYZ_cam6="4608x816x17" />
+<info stack_direction="+Z" />
+<info planes="1-17" />
+<info timepoints="128" />
+<info bit_depth="12" />
+<info defect_correction="off" />
+<info experiment_notes="" />
+</push_config>
