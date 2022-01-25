@@ -360,7 +360,7 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 1, chunk = (128, 128, 1), kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
@@ -391,7 +391,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
     end
 end
 
-function batch_resave_stacks_as_hdf5()
+function batch_resave_stacks_as_hdf5(; deflate = 1, chunk = (128, 128, 32))
     mock = false
     if ARGS[1] == "-n" || ARGS[1] == "--mock"
         mock = true
@@ -403,11 +403,12 @@ function batch_resave_stacks_as_hdf5()
     Usage: julia -e 'using MatrixMicroscopeUtils; batch_resave_stacks_as_hdf5()' -- [-n | --mock] in_path out_path
     """
     if length(ARGS) == 2
-        batch_resave_stacks_as_hdf5(ARGS[1], ARGS[2]; mock)
+        batch_resave_stacks_as_hdf5(ARGS[1], ARGS[2]; mock, deflate, chunk)
     end
 end
 
 precompile(batch_resave_stacks_as_hdf5, ())
+precompile(batch_resave_stacks_as_hdf5, (String, String))
 
 function rename_file_as_h5(filename, hdf5_ext="h5"; suffix="")
     @assert endswith(filename, ".stack") "Input file name must be a .stack file"
