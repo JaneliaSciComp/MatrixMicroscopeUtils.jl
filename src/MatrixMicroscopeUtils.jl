@@ -373,14 +373,16 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, deflate = 
                 h5_filename = joinpath(out_path, h5_filename)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
-                    resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ); h5_filename, metadata=md, kwargs...)
+                    resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
+                        h5_filename, metadata=md, deflate, chunk, kwargs...)
                 end
             elseif md.bit_depth == 16
                 h5_filename = replace(stack, ".stack" => ".h5")
                 h5_filename = joinpath(out_path, h5_filename)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
-                    resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ); h5_filename, metadata=md, kwargs...)
+                    resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
+                        h5_filename, metadata=md, deflate, chunk, kwargs...)
                 end
             else
                 error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
