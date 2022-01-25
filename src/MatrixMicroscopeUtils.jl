@@ -8,6 +8,9 @@ using Printf
 
 export MatrixMetadata
 export resave_uint12_stack_as_uint16_hdf5
+export resave_uint16_stack_as_uint16_hdf5
+export resave_stack_as_uint16_hdf5
+export batch_resave_stacks_as_hdf5
 
 # HDF5 v0.16 has a HDF5.API module
 # For HDF5 v0.15, just use HDF5
@@ -38,6 +41,7 @@ mutable struct MatrixMetadata
     experiment_notes::String
     cam::Int
     metadata_file::String
+    xml::String
     MatrixMetadata() = new()
 end
 
@@ -47,10 +51,27 @@ function Base.show(io::IO, ::MIME"text/plain", md::MatrixMetadata)
     #max_field_length = maximum([length(string(n)) for n in names])
     #padding = max_field_length + 4
     for f in names
+        # skip xml field
+        if f == :xml
+            continue
+        end
         v = getfield(md, f)
         fn = string(f)
         @printf(io, "%26s: %s\n", fn, v)
     end
+end
+
+function Base.:(==)(a::MatrixMetadata, b::MatrixMetadata)
+    for f in fieldnames(MatrixMetadata)
+        if f == :xml
+            continue
+        end
+        @debug f
+        if getfield(a, f) != getfield(b, f)
+            return false
+        end
+    end
+    return true
 end
 
 
@@ -126,8 +147,92 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     end
     A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
     A16 = convert(Array{UInt16}, A12)
-    f = h5open(h5_filename, "w")
+    if metadata === nothing
+        metadata = try_metadata(filename)
+    end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
+    save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+end
+
+# Locate the metadata file to determine the file size
+function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString; kwargs...)
+    try
+        md = metadata(filename)
+        @assert md.bit_depth == 12 "Bit depth is not 12 according to metadata XML file"
+        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+    catch err
+        throw(ErrorException("Cannot determine array size in $filename"))
+    end
+end
+
+function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
+                                            array_size;
+                                            h5_filename = rename_file_as_h5(filename),
+                                            split_timepoints::Bool = true,
+                                            timepoint_range = 0:typemax(Int)-1,
+                                            metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            kwargs...)
+    A16 = Mmap.mmap(filename, Vector{UInt16})
+    # 16-bit depth, 8 bits per byte
+    expected_bytes = prod(array_size)* 16 ÷ 8
+    if sizeof(A16) != expected_bytes
+        if mod(sizeof(A16), expected_bytes) == 0
+            # Calculate the number of timepoints 
+            array_size = (array_size..., sizeof(A16) ÷ expected_bytes)
+            @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
+        end
+    end
+    A16 = reshape(A16, array_size)
+    if metadata === nothing
+        metadata = try_metadata(filename)
+    end
+    dataset_name, _ = Base.Filesystem.splitext(basename(filename))
+    save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+end
+
+# Locate the metadata file to determine the file size
+function resave_uint16_stack_as_uint16_hdf5(filename; kwargs...)
+    try
+        md = metadata(filename)
+        @assert md.bit_depth == 16 "Bit depth is not 16 according to metadata XML file"
+        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+    catch err
+        throw(ErrorException("Cannot determine array size in $filename"))
+    end
+end
+
+function resave_stack_as_uint16_hdf5(filename; kwargs...)
+    md = nothing
+    try
+        md = metadata(filename)
+    catch err
+        throw(ErrorException("Cannot read metadata for $filename to determine bit_depth or array_size"))
+    end
+    if !isa(md, MatrixMetadata)
+        return nothing
+    end
+    if md.bit_depth == 16
+        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+    elseif md.bit_depth == 12
+        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+    else
+        error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
+    end
+end
+
+# Consider these arguments to be UNSTABLE
+# Can we simplify this by removing the filename argument?
+# 1. We need the dataset_name
+# 2. We need the raw XML
+function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
+                                   dataset_name;
+                                   h5_filename = rename_file_as_h5(dataset_name*".stack"),
+                                   split_timepoints::Bool = true,
+                                   timepoint_range = 0:typemax(Int)-1,
+                                   metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                   kwargs...)
+    @info "Saving file as $h5_filename"
+    f = h5open(h5_filename, "w")
 
     # Check if the file name format is "TM[ttttttt]_CM[c]"
     # where ttttttt is the time point and c is the camera number
@@ -135,50 +240,15 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     parent = f
     t = 0
     if m !== nothing
+        # Create a dataset named after the timepoint
         dataset_name = "TM" * first(m.captures)
         t = parse(Int, first(m.captures))
+        # Create a group named after the camera
         parent = create_group(f, "CM" * last(m.captures))
     end
     timepoint_range = max(t, first(timepoint_range)):min(t+size(A16,4)-1, last(timepoint_range))
 
     try
-        # Capture metadata and copy it into the HDF5 file
-        try
-            # Attempt to derive metadata from the filename 
-            if metadata isa MatrixMetadata
-                md_fn = metadata.metadata_filename
-            else
-                # This can throw an error if the XML file is not found
-                md_fn = metadata_filename(filename)
-            end
-
-            md_str = ""
-            if !isempty(md_fn)
-                # The first preference is to copy the original XML
-                md_str = read(md_fn, String)
-                write_attribute(parent, "xml_metadata", md_str)
-            elseif metadata isa MatrixMetadata
-                # Otherwise we can try to rebuild the XML from the MatrixMetadata structure
-                md_str = xml_string(metadata)
-                write_attribute(parent, "xml_metadata", xml_string(metadata))
-            else
-                error("Empty metdata filename and metadata structure not provided.")
-            end
-
-            # Write each metadata key as an attribute
-            metadata_dict = parse_info_xml_to_dict(LightXML.parse_string(md_str))
-            for (key,value) in metadata_dict
-                write_attribute(parent, key, value)
-            end
-
-            # If a metadata struct is not provided, construct it for element_size_um
-            if metadata === nothing
-                metadata = parse_info_xml(metadata_dict, extract_cam_number(md_fn))
-            end
-        catch err
-            rethrow(err)
-            @warn "Could not load metadata XML file for $filename" err
-        end
         if split_timepoints
             # Each timepoint will be in a separate dataset
             last_t = last(timepoint_range)
@@ -214,16 +284,6 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     end
 end
 
-# Locate the metadata file to determine the file size
-function resave_uint12_stack_as_uint16_hdf5(filename; kwargs...)
-    try
-        md = metadata(filename)
-        @assert md.bit_depth == 12 "Bit depth is not 12 according to metadata XML file"
-        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); kwargs...)
-    catch err
-        throw(ErrorException("Cannot determine array size in $filename"))
-    end
-end
 
 # Create a UInt24 external link to an existing stack file
 # This will work with h5py but not with the FIJI HDF5 readers, yet
@@ -300,6 +360,55 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
+    @assert isdir(in_path) "$in_path is not an existing directory"
+    in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
+    mkpath(out_path)
+    for stack in in_stacks
+        try
+            stack_full_path = joinpath(in_path, stack)
+            md = metadata(stack_full_path)
+            if md.bit_depth == 12
+                h5_filename = replace(stack, ".stack" => "_uint16.h5")
+                h5_filename = joinpath(out_path, h5_filename)
+                println("Resaving $stack_full_path to $h5_filename")
+                if !mock
+                    resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ); h5_filename, metadata=md, kwargs...)
+                end
+            elseif md.bit_depth == 16
+                h5_filename = replace(stack, ".stack" => ".h5")
+                h5_filename = joinpath(out_path, h5_filename)
+                println("Resaving $stack_full_path to $h5_filename")
+                if !mock
+                    resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ); h5_filename, metadata=md, kwargs...)
+                end
+            else
+                error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
+            end
+        catch err
+            @warn "Could not resave $stack in $in_path. Continuing..." err
+        end
+    end
+end
+
+function batch_resave_stacks_as_hdf5()
+    mock = false
+    if ARGS[1] == "-n" || ARGS[1] == "--mock"
+        mock = true
+        popfirst!(ARGS)
+    end
+    @assert length(ARGS) == 2 raw"""
+    Incorrect number of arguments.
+
+    Usage: julia -e 'using MatrixMicroscopeUtils; batch_resave_stacks_as_hdf5()' -- [-n | --mock] in_path out_path
+    """
+    if length(ARGS) == 2
+        batch_resave_stacks_as_hdf5(ARGS[1], ARGS[2]; mock)
+    end
+end
+
+precompile(batch_resave_stacks_as_hdf5, ())
+
 function rename_file_as_h5(filename, hdf5_ext="h5"; suffix="")
     @assert endswith(filename, ".stack") "Input file name must be a .stack file"
     filename = abspath(filename)
@@ -336,7 +445,15 @@ function metadata(filename::AbstractString)
     metadata = parse_info_xml(md_fn)
 end
 
-
+function try_metadata(filename::AbstractString)
+    md = nothing
+    try
+        md = metadata(filename)
+    catch err
+        @warn "Could not load metadata XML file for $filename" err
+    end
+    md
+end
 
 function num_timepoints(filename::AbstractString)
     # get file size in bytes
@@ -360,9 +477,12 @@ function bytes_per_stack(info::MatrixMetadata)
 end
 
 function parse_info_xml_to_dict(xmlfilename::AbstractString)
-    xml = parse_file(xmlfilename)
+    xmlstr = read(xmlfilename, String)
+    xml = parse_string(xmlstr)
     dict = parse_info_xml_to_dict(xml)
     dict["metadata_file"] = xmlfilename
+    dict["xml"] = xmlstr
+    dict["cam"] = string(extract_cam_number(xmlfilename))
     dict
 end
 
@@ -370,7 +490,7 @@ function parse_info_xml_to_dict(xml::XMLDocument)
     r = root(xml)
     dict = attributes_dict(r)
     for e in child_elements(r)
-        @assert name(e) == "info"
+        @assert name(e) == "info" "An XML element not named \"info\" was detected."
         attrs = attributes_dict(e)
         merge!(dict, attrs)
     end
@@ -435,6 +555,8 @@ function parse_info_xml(dict::Dict{AbstractString, AbstractString}, cam = extrac
     s.defect_correction = dict["defect_correction"]
     s.experiment_notes = dict["experiment_notes"]
     s.metadata_file = get(dict, "metadata_file", "")
+    # Capture the original XML file
+    s.xml = get(dict, "xml", xml_string(s))
     s
 end
 
