@@ -71,6 +71,174 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 │   array_size = (2304, 816, 17, 44)
 └   expected_bytes = 47941632
 ```
+
+# Other functions
+
+* `resave_uint16_stack_as_uint16_hdf5(filename)`
+* `resave_stack_as_uint16_hdf5(filename)`
+* `batch_resave_stacks_as_hdf5(in_path, out_path)`
+
+# Scripts
+
+* `scripts/install.jl` - Invoke once to instantiate the Julia environment and install all the packages.
+* `scripts/batch_resave.jl` - Batch command to invoke `batch_resave_stacks_as_hdf5()`
+
+## Example Script Usage
+```powershell
+PS C:\Users\kittisopikulm\Documents\Julia> git clone https://github.com/JaneliaSciComp/MatrixMicroscopeUtils.jl
+remote: Enumerating objects: 73, done.
+remote: Counting objects: 100% (73/73), done.
+remote: Compressing objects: 100% (51/51), done.
+remote: Total 73 (delta 26), reused 62 (delta 16), pack-reused 0R
+Receiving objects: 100% (73/73), 40.50 KiB | 4.50 MiB/s, done.
+Resolving deltas: 100% (26/26), done.
+
+PS C:\Users\kittisopikulm\Documents\Julia> cd .\MatrixMicroscopeUtils.jl\
+
+PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\install.jl
+  Activating environment at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
+    Updating registry at `C:\Users\kittisopikulm\.julia\registries\General`
+    Updating `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
+  [f67ccb44] + HDF5 v0.15.7
+  [9c8b4983] + LightXML v0.9.0
+  [c28d94ed] + UInt12Arrays v0.2.0
+    Updating `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Manifest.toml`
+  [c3b6d118] + BitIntegers v0.2.6
+  [a74b3585] + Blosc v0.7.2
+  [34da2185] + Compat v3.41.0
+  [f67ccb44] + HDF5 v0.15.7
+  [692b3bcd] + JLLWrappers v1.4.0
+  [9c8b4983] + LightXML v0.9.0
+  [21216c6a] + Preferences v1.2.3
+  [ae029012] + Requires v1.3.0
+  [fdea26ae] + SIMD v3.4.0
+  [c28d94ed] + UInt12Arrays v0.2.0
+  [0b7ba130] + Blosc_jll v1.21.1+0
+  [0234f1f7] + HDF5_jll v1.12.1+0
+  [94ce4f54] + Libiconv_jll v1.16.1+1
+  [5ced341a] + Lz4_jll v1.9.3+0
+  [458c3c95] + OpenSSL_jll v1.1.13+0
+  [02c8fc9c] + XML2_jll v2.9.12+0
+  [3161d3a3] + Zstd_jll v1.5.0+0
+  [0dad84c5] + ArgTools
+  [56f22d72] + Artifacts
+  [2a0f44e3] + Base64
+  [ade2ca70] + Dates
+  [8bb1440f] + DelimitedFiles
+  [8ba89e20] + Distributed
+  [f43a241f] + Downloads
+  [b77e0a4c] + InteractiveUtils
+  [b27032c2] + LibCURL
+  [76f85450] + LibGit2
+  [37e2e46d] + LinearAlgebra
+  [56ddb016] + Logging
+  [d6f4376e] + Markdown
+  [a63ad114] + Mmap
+  [ca575930] + NetworkOptions
+  [44cfe95a] + Pkg
+  [de0858da] + Printf
+  [3fa0cd96] + REPL
+  [9a3f8284] + Random
+  [ea8e919c] + SHA
+  [9e88b42a] + Serialization
+  [1a1011a3] + SharedArrays
+  [6462fe0b] + Sockets
+  [2f01184e] + SparseArrays
+  [10745b16] + Statistics
+  [fa267f1f] + TOML
+  [a4e569a6] + Tar
+  [8dfed614] + Test
+  [cf7118a7] + UUIDs
+  [4ec0a83e] + Unicode
+  [deac9b47] + LibCURL_jll
+  [29816b5a] + LibSSH2_jll
+  [c8ffd9c3] + MbedTLS_jll
+  [14a3606d] + MozillaCACerts_jll
+  [83775a58] + Zlib_jll
+  [8e850ede] + nghttp2_jll
+  [3f19e933] + p7zip_jll
+
+PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\batch_resave.jl \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054 \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5
+  Activating environment at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM1.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM1.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM2.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM2.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM3.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM3.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM4.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM4.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM5.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM5.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM6.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM6.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM7.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM7.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM7.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM8.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM8.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM8.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000000_CM9.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM9.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000000_CM9.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM1.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM1.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM1.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM2.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM2.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM2.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM3.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM3.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM3.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM4.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM4.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM4.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM5.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM5.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM5.h5
+Resaving \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\TM0000011_CM6.stack to \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM6.h5
+┌ Info: Inferred the number of time points from the file size being a multiple of the number of expected bytes
+│   array_size = (2304, 816, 50, 11)
+└   expected_bytes = 188006400
+[ Info: Saving file as \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5\TM0000011_CM6.h5
+
+...
+```
+
 # Reading HDF5 files in Julia
 
 HDF5 files can be read in Julia via HDF5.jl.
