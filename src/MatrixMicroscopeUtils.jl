@@ -90,8 +90,11 @@ then it will be determined by finding the `dimensions_XYZ`` property in the meta
 
 # Keywords
 * `h5_filename` is the name of the HDF5 file to create. "_uint16" is appended to the name and the extension is changed to h5 from stack
+* `suffix` is appended to the original stack filename with an underscore. Default: "uint16"
 * `split_timepoints` determines whether to split timepoints into separate datasets in the HDF5 file. The default is `true` to split the timepoints.
    If `false`, a single 4D dataset will be saved with dimensions XYZT.
+* `one_file_per_timepoint` determines whether to split timepoints into separate HDF5 files. The default is `false`. Also see `split_timepoints`
+* `timepoint_range` is the range of timepoints to resave. The intersection with the existing data will be calculated. Default: `0:typemax(Int)-1`
 * `metadata` an optional `MatrixMetadata`
 
 # Additional Keywords
