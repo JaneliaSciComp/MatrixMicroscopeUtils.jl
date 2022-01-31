@@ -1,6 +1,10 @@
 module MatrixMicroscopeUtils
 
 using HDF5
+using H5Zblosc
+using H5Zzstd
+using H5Zlz4
+using H5Zbzip2
 using UInt12Arrays
 using Mmap
 using LightXML
@@ -17,7 +21,7 @@ export batch_resave_stacks_as_hdf5
 # HDF5 v0.16 has a HDF5.API module
 # For HDF5 v0.15, just use HDF5
 #const HDF5API = HDF5.API
-const HDF5API = HDF5
+const HDF5API = HDF5.API
 
 const XYZ = (:X, :Y, :Z)
 
@@ -387,6 +391,34 @@ function get_element_size_um_ZYX(metadata::MatrixMetadata)
 end
 get_element_size_um_ZYX(::Nothing) = nothing
 
+function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer)
+    A = Mmap.mmap(filename, Vector{UInt8})
+    # 8 bits per byte
+    expected_bytes = prod(array_size) * bit_depth ÷ 8
+    if sizeof(A) != expected_bytes
+        if mod(sizeof(A), expected_bytes) == 0
+            # Calculate the number of timepoints 
+            array_size = (array_size..., sizeof(A) ÷ expected_bytes)
+            @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
+        end
+    end
+    if bit_depth == 12
+        A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
+        A16 = convert(Array{UInt16}, A12)
+    elseif bit_depth == 16
+        A16 = reshape(reinterpret(UInt16,A), array_size)
+    else
+        error("Do not know how to handle data with bit depth of $bit_depth")
+    end
+    A16
+end
+
+function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata = metadata(filename))
+    array_size = Tuple(md.dimensions_XYZ)
+    bit_depth = md.bit_depth
+    read_stack_as_uint16_array(filename, array_size, bit_depth)
+end
+
 # Create a UInt24 external link to an existing stack file
 # This will work with h5py but not with the FIJI HDF5 readers, yet
 # This also requires HDF5.jl v0.16 to work properly
@@ -510,6 +542,14 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
             help = "Deflate compression level"
             arg_type = Int
             default = 0
+        "--blosc"
+            help = "Blosc compression level"
+            arg_type = Int
+            default = 0
+        "--zstd"
+            help = "Zstd compression level"
+            arg_type = Int
+            default = 0
         "--shuffle"
             help = "Do byte shuffle"
             action = :store_true
@@ -539,6 +579,8 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
     mock = a["mock"]
     shuffle = a["shuffle"] ? (shuffle = (),) : ()
     deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
+    blosc = a["blosc"] == 0 ? () : (blosc = a["blosc"],)
+    zstd = a["zstd"] == 0 ? () : (filters = ZstdFilter(a["zstd"]),)
     chunk = a["chunk"] == (0,0,0) ? () : (chunk = a["chunk"],)
     one_file_per_timepoint = a["one_file_per_timepoint"] ? (one_file_per_timepoint = true,) : ()
     suffix = isempty(a["suffix"]) ? () : (suffix = a["suffix"],)
@@ -551,6 +593,8 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
         chunk...,
         shuffle...,
         deflate...,
+        blosc...,
+        zstd...,
         one_file_per_timepoint...,
         suffix...,
         force...,
