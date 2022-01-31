@@ -145,6 +145,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
                                             one_file_per_timepoint::Bool = false,
                                             timepoint_range = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 12-bit depth, 8 bits per byte
@@ -159,7 +160,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
     A16 = convert(Array{UInt16}, A12)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
@@ -167,9 +168,9 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
         if suffix == "uint16"
             suffix = "uint16_single_timepoint"
         end
-        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, kwargs...)
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
     else
-        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
     end
 end
 
@@ -192,6 +193,7 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
                                             one_file_per_timepoint::Bool = false,
                                             timepoint_range::AbstractRange = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A16 = Mmap.mmap(filename, Vector{UInt16})
     # 16-bit depth, 8 bits per byte
@@ -205,7 +207,7 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
     end
     A16 = reshape(A16, array_size)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
@@ -213,9 +215,9 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
         if isempty(suffix)
             suffix = "single_timepoint"
         end
-        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, kwargs...)
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
     else
-        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
     end
 end
 
@@ -316,6 +318,7 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
                                           suffix::AbstractString = "single_timepoint",
                                           h5_ext::AbstractString = "h5",
                                           force::Bool = false,
+                                          rethrow_errors::Bool = false,
                                           kwargs...)
     m = match(r"TM(\d+)_CM(\d+)", dataset_name)
     t = 0
@@ -355,6 +358,9 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
             end
         catch err
             @warn "Could not save $h5_filename. Trying to skip..." err
+            if rethrow_errors
+                rethrow(err)
+            end
             continue
         end
     end
@@ -494,7 +500,7 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, rethrow_errors = false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
@@ -509,7 +515,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             elseif md.bit_depth == 16
                 h5_filename = replace(stack, ".stack" => ".h5")
@@ -517,13 +523,16 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             else
                 error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
             end
         catch err
             @warn "Could not resave $stack in $in_path. Continuing to the next stack..." err
+            if rethrow_errors
+                rethrow(err)
+            end
         end
     end
 end
@@ -567,6 +576,9 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
         "--force", "-f"
             help = "Overwrite files if they exist."
             action = :store_true
+        "--debug"
+            help = "Activate debugging features and logging"
+            action = :store_true
         "in_path"
             help = "Directory with .stack files"
             required = true
@@ -576,28 +588,26 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
     end
 
     a = parse_args(ARGS, s)
-    mock = a["mock"]
-    shuffle = a["shuffle"] ? (shuffle = (),) : ()
-    deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
-    blosc = a["blosc"] == 0 ? () : (blosc = a["blosc"],)
-    zstd = a["zstd"] == 0 ? () : (filters = ZstdFilter(a["zstd"]),)
-    chunk = a["chunk"] == (0,0,0) ? () : (chunk = a["chunk"],)
-    one_file_per_timepoint = a["one_file_per_timepoint"] ? (one_file_per_timepoint = true,) : ()
-    suffix = isempty(a["suffix"]) ? () : (suffix = a["suffix"],)
-    force = a["force"] ? (force = true,) : ()
+    # Keyword Dictionary
+    k = Dict{Symbol, Any}()
+    k[:mock] = a["mock"]
+    a["shuffle"]      && (k[:shuffle] = ())
+    a["deflate"] != 0 && (k[:deflate] = a["deflate"])
+    a["blosc"] != 0   && (k[:blosc] = a["blosc"])
+    a["zstd"] != 0    && (k[:filters] = ZstdFilter(a["zstd"]))
+    a["chunk"] != (0,0,0) && (k[:chunk] = a["chunk"])
+    a["one_file_per_timepoint"] && (k[:one_file_per_timepoint] = true)
+    !isempty(a["suffix"]) && (k[:suffix] = a["suffix"])
+    a["force"] && (k[:force] = true)
+    if a["debug"]
+        ENV["JULIA_DEBUG"] = MatrixMicroscopeUtils
+        k[:rethrow_errors] = true
+    end
 
-    @debug a
+    @debug "Parsed args and keywords" a k
 
     batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"];
-        mock,
-        chunk...,
-        shuffle...,
-        deflate...,
-        blosc...,
-        zstd...,
-        one_file_per_timepoint...,
-        suffix...,
-        force...,
+        k...,
         kwargs...)
 end
 
@@ -657,12 +667,15 @@ function metadata(filename::AbstractString)
     metadata = parse_info_xml(md_fn)
 end
 
-function try_metadata(filename::AbstractString)
+function try_metadata(filename::AbstractString; rethrow_errors = false)
     md = nothing
     try
         md = metadata(filename)
     catch err
         @warn "Could not load metadata XML file for $filename" err
+        if rethrow_errors
+            rethrow(err)
+        end
     end
     md
 end
