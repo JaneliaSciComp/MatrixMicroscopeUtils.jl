@@ -834,4 +834,6 @@ function xml_string(metadata::MatrixMetadata)
     string(generate_xml(metadata))
 end
 
+include("links.jl")
+
 end # module MatrixMicroscopeUtils
