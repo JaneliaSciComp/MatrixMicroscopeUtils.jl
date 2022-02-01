@@ -1,6 +1,10 @@
 module MatrixMicroscopeUtils
 
 using HDF5
+using H5Zblosc
+using H5Zzstd
+using H5Zlz4
+using H5Zbzip2
 using UInt12Arrays
 using Mmap
 using LightXML
@@ -17,7 +21,7 @@ export batch_resave_stacks_as_hdf5
 # HDF5 v0.16 has a HDF5.API module
 # For HDF5 v0.15, just use HDF5
 #const HDF5API = HDF5.API
-const HDF5API = HDF5
+const HDF5API = HDF5.API
 
 const XYZ = (:X, :Y, :Z)
 
@@ -141,6 +145,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
                                             one_file_per_timepoint::Bool = false,
                                             timepoint_range = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 12-bit depth, 8 bits per byte
@@ -155,7 +160,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
     A16 = convert(Array{UInt16}, A12)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
@@ -163,9 +168,9 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
         if suffix == "uint16"
             suffix = "uint16_single_timepoint"
         end
-        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, kwargs...)
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
     else
-        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
     end
 end
 
@@ -188,6 +193,7 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
                                             one_file_per_timepoint::Bool = false,
                                             timepoint_range::AbstractRange = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A16 = Mmap.mmap(filename, Vector{UInt16})
     # 16-bit depth, 8 bits per byte
@@ -201,7 +207,7 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
     end
     A16 = reshape(A16, array_size)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
@@ -209,9 +215,9 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
         if isempty(suffix)
             suffix = "single_timepoint"
         end
-        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, kwargs...)
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
     else
-        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
     end
 end
 
@@ -312,6 +318,7 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
                                           suffix::AbstractString = "single_timepoint",
                                           h5_ext::AbstractString = "h5",
                                           force::Bool = false,
+                                          rethrow_errors::Bool = false,
                                           kwargs...)
     m = match(r"TM(\d+)_CM(\d+)", dataset_name)
     t = 0
@@ -351,6 +358,9 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
             end
         catch err
             @warn "Could not save $h5_filename. Trying to skip..." err
+            if rethrow_errors
+                rethrow(err)
+            end
             continue
         end
     end
@@ -386,6 +396,34 @@ function get_element_size_um_ZYX(metadata::MatrixMetadata)
     return [s.Z, s.Y, s.X]
 end
 get_element_size_um_ZYX(::Nothing) = nothing
+
+function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer)
+    A = Mmap.mmap(filename, Vector{UInt8})
+    # 8 bits per byte
+    expected_bytes = prod(array_size) * bit_depth ÷ 8
+    if sizeof(A) != expected_bytes
+        if mod(sizeof(A), expected_bytes) == 0
+            # Calculate the number of timepoints 
+            array_size = (array_size..., sizeof(A) ÷ expected_bytes)
+            @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
+        end
+    end
+    if bit_depth == 12
+        A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
+        A16 = convert(Array{UInt16}, A12)
+    elseif bit_depth == 16
+        A16 = reshape(reinterpret(UInt16,A), array_size)
+    else
+        error("Do not know how to handle data with bit depth of $bit_depth")
+    end
+    A16
+end
+
+function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata = metadata(filename))
+    array_size = Tuple(md.dimensions_XYZ)
+    bit_depth = md.bit_depth
+    read_stack_as_uint16_array(filename, array_size, bit_depth)
+end
 
 # Create a UInt24 external link to an existing stack file
 # This will work with h5py but not with the FIJI HDF5 readers, yet
@@ -462,7 +500,7 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, rethrow_errors = false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
@@ -477,7 +515,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             elseif md.bit_depth == 16
                 h5_filename = replace(stack, ".stack" => ".h5")
@@ -485,13 +523,16 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             else
                 error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
             end
         catch err
             @warn "Could not resave $stack in $in_path. Continuing to the next stack..." err
+            if rethrow_errors
+                rethrow(err)
+            end
         end
     end
 end
@@ -508,6 +549,14 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
             action = :store_true
         "--deflate"
             help = "Deflate compression level"
+            arg_type = Int
+            default = 0
+        "--blosc"
+            help = "Blosc compression level"
+            arg_type = Int
+            default = 0
+        "--zstd"
+            help = "Zstd compression level"
             arg_type = Int
             default = 0
         "--shuffle"
@@ -527,6 +576,9 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
         "--force", "-f"
             help = "Overwrite files if they exist."
             action = :store_true
+        "--debug"
+            help = "Activate debugging features and logging"
+            action = :store_true
         "in_path"
             help = "Directory with .stack files"
             required = true
@@ -536,24 +588,26 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
     end
 
     a = parse_args(ARGS, s)
-    mock = a["mock"]
-    shuffle = a["shuffle"] ? (shuffle = (),) : ()
-    deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
-    chunk = a["chunk"] == (0,0,0) ? () : (chunk = a["chunk"],)
-    one_file_per_timepoint = a["one_file_per_timepoint"] ? (one_file_per_timepoint = true,) : ()
-    suffix = isempty(a["suffix"]) ? () : (suffix = a["suffix"],)
-    force = a["force"] ? (force = true,) : ()
+    # Keyword Dictionary
+    k = Dict{Symbol, Any}()
+    k[:mock] = a["mock"]
+    a["shuffle"]      && (k[:shuffle] = ())
+    a["deflate"] != 0 && (k[:deflate] = a["deflate"])
+    a["blosc"] != 0   && (k[:blosc] = a["blosc"])
+    a["zstd"] != 0    && (k[:filters] = ZstdFilter(a["zstd"]))
+    a["chunk"] != (0,0,0) && (k[:chunk] = a["chunk"])
+    a["one_file_per_timepoint"] && (k[:one_file_per_timepoint] = true)
+    !isempty(a["suffix"]) && (k[:suffix] = a["suffix"])
+    a["force"] && (k[:force] = true)
+    if a["debug"]
+        ENV["JULIA_DEBUG"] = MatrixMicroscopeUtils
+        k[:rethrow_errors] = true
+    end
 
-    @debug a
+    @debug "Parsed args and keywords" a k
 
     batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"];
-        mock,
-        chunk...,
-        shuffle...,
-        deflate...,
-        one_file_per_timepoint...,
-        suffix...,
-        force...,
+        k...,
         kwargs...)
 end
 
@@ -613,12 +667,15 @@ function metadata(filename::AbstractString)
     metadata = parse_info_xml(md_fn)
 end
 
-function try_metadata(filename::AbstractString)
+function try_metadata(filename::AbstractString; rethrow_errors = false)
     md = nothing
     try
         md = metadata(filename)
     catch err
         @warn "Could not load metadata XML file for $filename" err
+        if rethrow_errors
+            rethrow(err)
+        end
     end
     md
 end
@@ -776,5 +833,7 @@ end
 function xml_string(metadata::MatrixMetadata)
     string(generate_xml(metadata))
 end
+
+include("links.jl")
 
 end # module MatrixMicroscopeUtils

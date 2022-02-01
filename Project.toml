@@ -1,11 +1,15 @@
 name = "MatrixMicroscopeUtils"
 uuid = "24e7d267-5f12-4ea2-b3b8-41e0e0cfae6c"
 authors = ["Mark Kittisopikul <kittisopikulm@janelia.hhmi.org> and contributors"]
-version = "0.3.0"
+version = "0.4.0"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+H5Zblosc = "c8ec2601-a99c-407f-b158-e79c03c2f5f7"
+H5Zbzip2 = "094576f2-1e46-4c84-8e32-c46c042eaaa2"
+H5Zlz4 = "eb20ec05-5464-47b5-ba41-098e3c1068a3"
+H5Zzstd = "f6f2d980-1ec6-471c-a70d-0270e22f1103"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
@@ -14,6 +18,8 @@ UInt12Arrays = "c28d94ed-d5b6-4a5f-906b-ac5b0f674341"
 
 [compat]
 HDF5 = "0.15.7, 0.16"
+ArgParse = "1"
+HDF5 = "0.16.0"
 LightXML = "0.9"
 UInt12Arrays = "0.2"
 julia = "1"
