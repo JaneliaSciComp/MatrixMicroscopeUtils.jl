@@ -32,8 +32,11 @@ then it will be determined by finding the `dimensions_XYZ`` property in the meta
 
 ### Keywords
 * `h5_filename` is the name of the HDF5 file to create. "_uint16" is appended to the name and the extension is changed to h5 from stack
+* `suffix` is appended to the original stack filename with an underscore. Default: "uint16"
 * `split_timepoints` determines whether to split timepoints into separate datasets in the HDF5 file. The default is `true` to split the timepoints.
    If `false`, a single 4D dataset will be saved with dimensions XYZT.
+* `one_file_per_timepoint` determines whether to split timepoints into separate HDF5 files. The default is `false`. Also see `split_timepoints`
+* `timepoint_range` is the range of timepoints to resave. The intersection with the existing data will be calculated. Default: `0:typemax(Int)-1`
 * `metadata` an optional `MatrixMetadata`
 
 ### Additional Keywords
@@ -74,14 +77,43 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 
 # Other functions
 
-* `resave_uint16_stack_as_uint16_hdf5(filename)`
 * `resave_stack_as_uint16_hdf5(filename)`
+* `resave_uint16_stack_as_uint16_hdf5(filename)`
 * `batch_resave_stacks_as_hdf5(in_path, out_path)`
 
 # Scripts
 
 * `scripts/install.jl` - Invoke once to instantiate the Julia environment and install all the packages.
 * `scripts/batch_resave.jl` - Batch command to invoke `batch_resave_stacks_as_hdf5()`
+
+## `scripts/batch_resave.jl` Usage Help
+
+```
+$ julia scripts\batch_resave.jl -h
+usage: scripts/batch_resave.jl [-n] [--deflate DEFLATE] [--shuffle]
+                        [--chunk CHUNK] [-o] [--suffix SUFFIX] [-f]
+                        [-h] in_path out_path
+
+Resave a raw .stack file as a HDF5 file
+
+positional arguments:
+  in_path               Directory with .stack files
+  out_path              Directory to store .h5 files
+
+optional arguments:
+  -n, --mock            Flag for a mock run. Do nothing.
+  --deflate DEFLATE     Deflate compression level (type: Int64,
+                        default: 0)
+  --shuffle             Do byte shuffle
+  --chunk CHUNK         Chunk size (type: Tuple{Int64, Int64, Int64},
+                        default: (128, 128, 17))
+  -o, --one_file_per_timepoint
+                        Save one .h5 file per timepoint
+  --suffix SUFFIX       Append (or override) a suffix. Not the file
+                        extension. (default: "")
+  -f, --force           Overwrite files if they exist.
+  -h, --help            show this help message and exit
+```
 
 ## Example Script Usage
 ```powershell
@@ -164,22 +196,28 @@ PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scri
 PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\batch_resave.jl -h
   Activating project at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl`
 usage: scripts/batch_resave.jl [-n] [--deflate DEFLATE] [--shuffle]
-                        [--chunk CHUNK] [-h] in_path out_path
+                        [--chunk CHUNK] [-o] [--suffix SUFFIX] [-f]
+                        [-h] in_path out_path
 
 Resave a raw .stack file as a HDF5 file
 
 positional arguments:
-  in_path            Directory with .stack files
-  out_path           Directory to store .h5 files
+  in_path               Directory with .stack files
+  out_path              Directory to store .h5 files
 
 optional arguments:
-  -n, --mock         Flag for a mock run. Do nothing.
-  --deflate DEFLATE  Deflate compression level (type: Int64, default:
-                     0)
-  --shuffle          Do byte shuffle
-  --chunk CHUNK      Chunk size (type: Tuple{Int64, Int64, Int64},
-                     default: (128, 128, 32))
-  -h, --help         show this help message and exit
+  -n, --mock            Flag for a mock run. Do nothing.
+  --deflate DEFLATE     Deflate compression level (type: Int64,
+                        default: 0)
+  --shuffle             Do byte shuffle
+  --chunk CHUNK         Chunk size (type: Tuple{Int64, Int64, Int64},
+                        default: (128, 128, 17))
+  -o, --one_file_per_timepoint
+                        Save one .h5 file per timepoint
+  --suffix SUFFIX       Append (or override) a suffix. Not the file
+                        extension. (default: "")
+  -f, --force           Overwrite files if they exist.
+  -h, --help            show this help message and exit
 
 PS C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl> julia .\scripts\batch_resave.jl \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054 \\Keller-S10\Data\Matrix\RC_22-01-17\USAF_16bit_20220117_161054\hdf5
   Activating environment at `C:\Users\kittisopikulm\Documents\Julia\MatrixMicroscopeUtils.jl\Project.toml`

@@ -1,6 +1,10 @@
 module MatrixMicroscopeUtils
 
 using HDF5
+using H5Zblosc
+using H5Zzstd
+using H5Zlz4
+using H5Zbzip2
 using UInt12Arrays
 using Mmap
 using LightXML
@@ -17,7 +21,7 @@ export batch_resave_stacks_as_hdf5
 # HDF5 v0.16 has a HDF5.API module
 # For HDF5 v0.15, just use HDF5
 #const HDF5API = HDF5.API
-const HDF5API = HDF5
+const HDF5API = HDF5.API
 
 const XYZ = (:X, :Y, :Z)
 
@@ -90,8 +94,11 @@ then it will be determined by finding the `dimensions_XYZ`` property in the meta
 
 # Keywords
 * `h5_filename` is the name of the HDF5 file to create. "_uint16" is appended to the name and the extension is changed to h5 from stack
+* `suffix` is appended to the original stack filename with an underscore. Default: "uint16"
 * `split_timepoints` determines whether to split timepoints into separate datasets in the HDF5 file. The default is `true` to split the timepoints.
    If `false`, a single 4D dataset will be saved with dimensions XYZT.
+* `one_file_per_timepoint` determines whether to split timepoints into separate HDF5 files. The default is `false`. Also see `split_timepoints`
+* `timepoint_range` is the range of timepoints to resave. The intersection with the existing data will be calculated. Default: `0:typemax(Int)-1`
 * `metadata` an optional `MatrixMetadata`
 
 # Additional Keywords
@@ -131,11 +138,14 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 ```
 """
 function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
-                                            array_size;
-                                            h5_filename = rename_file_as_h5(filename; suffix="uint16"),
+                                            array_size::Dims;
+                                            suffix::AbstractString = "uint16",
+                                            h5_filename = rename_file_as_h5(filename; suffix),
                                             split_timepoints::Bool = true,
+                                            one_file_per_timepoint::Bool = false,
                                             timepoint_range = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 12-bit depth, 8 bits per byte
@@ -150,10 +160,18 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
     A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
     A16 = convert(Array{UInt16}, A12)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
-    save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+    if one_file_per_timepoint
+        out_path = dirname(h5_filename)
+        if suffix == "uint16"
+            suffix = "uint16_single_timepoint"
+        end
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
+    else
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
+    end
 end
 
 # Locate the metadata file to determine the file size
@@ -168,11 +186,14 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString; kwargs...)
 end
 
 function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
-                                            array_size;
-                                            h5_filename = rename_file_as_h5(filename),
+                                            array_size::Dims;
+                                            suffix::AbstractString = "",
+                                            h5_filename::AbstractString = rename_file_as_h5(filename; suffix),
                                             split_timepoints::Bool = true,
-                                            timepoint_range = 0:typemax(Int)-1,
+                                            one_file_per_timepoint::Bool = false,
+                                            timepoint_range::AbstractRange = 0:typemax(Int)-1,
                                             metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                            rethrow_errors::Bool = false,
                                             kwargs...)
     A16 = Mmap.mmap(filename, Vector{UInt16})
     # 16-bit depth, 8 bits per byte
@@ -186,10 +207,18 @@ function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
     end
     A16 = reshape(A16, array_size)
     if metadata === nothing
-        metadata = try_metadata(filename)
+        metadata = try_metadata(filename; rethrow_errors)
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
-    save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, kwargs...)
+    if one_file_per_timepoint
+        out_path = dirname(h5_filename)
+        if isempty(suffix)
+            suffix = "single_timepoint"
+        end
+        save_one_hdf5_file_per_timepoint(A16, dataset_name; timepoint_range, metadata, out_path, suffix, rethrow_errors, kwargs...)
+    else
+        save_uint16_array_as_hdf5(A16, dataset_name; h5_filename, split_timepoints, timepoint_range, metadata, rethrow_errors, kwargs...)
+    end
 end
 
 # Locate the metadata file to determine the file size
@@ -227,13 +256,15 @@ end
 # 1. We need the dataset_name
 # 2. We need the raw XML
 function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
-                                   dataset_name;
-                                   h5_filename = rename_file_as_h5(dataset_name*".stack"),
+                                   dataset_name::AbstractString;
+                                   h5_filename::AbstractString = rename_file_as_h5(dataset_name*".stack"),
                                    split_timepoints::Bool = true,
-                                   timepoint_range = 0:typemax(Int)-1,
+                                   timepoint_range::AbstractRange = 0:typemax(Int)-1,
                                    metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                   force::Bool = false,
                                    kwargs...)
     @info "Saving file as $h5_filename"
+    check_file_existence(h5_filename; force)
     f = h5open(h5_filename, "w")
     try
         # Check if the file name format is "TM[ttttttt]_CM[c]"
@@ -248,30 +279,19 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
             # Create a group named after the camera
             parent = create_group(f, "CM" * last(m.captures))
         end
-        timepoint_range = max(t, first(timepoint_range)):min(t+size(A16,4)-1, last(timepoint_range))
+        data_range = t : t + size(A16,4) - 1
+        timepoint_range = intersect(timepoint_range, data_range)
 
         # Capture metadata and copy it into the HDF5 file
-        if metadata isa MatrixMetadata
-            # Otherwise we can try to rebuild the XML from the MatrixMetadata structure
-            write_attribute(parent, "xml_metadata", metadata.xml)
-            metadata_dict = parse_info_xml_to_dict(LightXML.parse_string(metadata.xml))
-            for (key,value) in metadata_dict
-                write_attribute(parent, key, value)
-            end
-        end
+        write_cam_metadata_to_hdf5(parent, metadata)
 
         if split_timepoints
             # Each timepoint will be in a separate dataset
             last_t = last(timepoint_range)
+            e = get_element_size_um_ZYX(metadata)
             for slice in eachslice(A16, dims = 4)
                 dataset_name = @sprintf "TM%07d" t
-                d, dtype = create_dataset(parent, dataset_name, slice; kwargs...)
-                write_dataset(d, dtype, slice)
-                if metadata isa MatrixMetadata
-                    # HDF5 Vibez Plugin for FIJI
-                    s = metadata.sampling_XYZ_um
-                    write_attribute(d, "element_size_um", [s.Z, s.Y, s.X])
-                end
+                write_array_dataset(parent, dataset_name, slice, e; kwargs...)
                 t = t + 1
                 if t > last_t
                     break;
@@ -281,20 +301,129 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
             # There will be one dataset with the name matching the filename
             data = A16
             if size(data, 4) != length(timepoint_range)
-                data = data[:, :, :, begin : begin+length(timepoint_range-1)]
+                data = [:, :, :, timepoint_range .- (t - 1)]
             end
-            d, dtype = create_dataset(parent, dataset_name, A16; kwargs...)
-            if metadata !== nothing
-                # HDF5 Vibez Plugin for FIJI
-                write_attribute(d, "element_size_um", reverse([Tuple(metadata.sampling_XYZ_um)...]))
-            end
-            write_dataset(d, dtype, A16)
+            write_array_dataset(parent, dataset_name, A16, metadata; kwargs...)
         end
     finally
         close(f)
     end
 end
 
+function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
+                                          dataset_name::AbstractString;
+                                          timepoint_range::AbstractRange = 0:typemax(Int)-1,
+                                          metadata::Union{MatrixMetadata, Nothing} = nothing,
+                                          out_path::AbstractString = pwd(),
+                                          suffix::AbstractString = "single_timepoint",
+                                          h5_ext::AbstractString = "h5",
+                                          force::Bool = false,
+                                          rethrow_errors::Bool = false,
+                                          kwargs...)
+    m = match(r"TM(\d+)_CM(\d+)", dataset_name)
+    t = 0
+    prefix = ""
+    cam = "0"
+    if m !== nothing
+        # Create a dataset named after the timepoint
+        dataset_name = "TM" * first(m.captures)
+        t = parse(Int, first(m.captures))
+        cam = last(m.captures)
+    else
+        prefix = dataset_name * "_"
+    end
+    data_range = t : t + size(A16,4) - 1
+    timepoint_range = intersect(timepoint_range, data_range)
+    data = A16[:, :, :, timepoint_range .- (t - 1)]
+    e = get_element_size_um_ZYX(metadata)
+    if !isempty(out_path)
+        mkpath(out_path)
+    end
+    for (tn, slice) in zip(timepoint_range, eachslice(data, dims=4))
+        h5_filename = @sprintf "%sTM%07d_CM%s_%s.%s" prefix tn cam suffix h5_ext
+        h5_filename = joinpath(out_path, h5_filename)
+        try
+            @info "Saving file as $h5_filename"
+            check_file_existence(h5_filename; force)
+            f = h5open(h5_filename, "w")
+            try
+                # Create a group named after the camera
+                parent = create_group(f, "CM" * cam)
+                write_cam_metadata_to_hdf5(parent, metadata)
+                # Write a single dataset for the timepoint
+                dataset_name = @sprintf "TM%07d" tn - t
+                write_array_dataset(parent, dataset_name, slice, e; kwargs...)
+            finally
+                close(f)
+            end
+        catch err
+            @warn "Could not save $h5_filename. Trying to skip..." err
+            if rethrow_errors
+                rethrow(err)
+            end
+            continue
+        end
+    end
+end
+
+function write_cam_metadata_to_hdf5(parent::Union{HDF5.Group, HDF5.File}, metadata::MatrixMetadata)
+    write_attribute(parent, "xml_metadata", metadata.xml)
+    metadata_dict = parse_info_xml_to_dict(LightXML.parse_string(metadata.xml))
+    for (key,value) in metadata_dict
+        write_attribute(parent, key, value)
+    end
+    return nothing
+end
+write_cam_metadata_to_hdf5(parent, metadata::Nothing) = nothing
+
+function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, metadata::MatrixMetadata; kwargs...)
+    e = get_element_size_um_ZYX(metadata)
+    write_array_dataset(parent, dataset_name, array, e; kwargs...)
+end
+function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, element_size_um_ZYX::Vector{Float64}; kwargs...)
+    d, dtype = create_dataset(parent, dataset_name, array; kwargs...)
+    write_dataset(d, dtype, array)
+    # HDF5 Vibez Plugin for FIJI
+    write_attribute(d, "element_size_um", element_size_um_ZYX)
+end
+function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, ::Nothing; kwargs...)
+    d, dtype = create_dataset(parent, dataset_name, array; kwargs...)
+    write_dataset(d, dtype, array)
+end
+
+function get_element_size_um_ZYX(metadata::MatrixMetadata)
+    s = metadata.sampling_XYZ_um
+    return [s.Z, s.Y, s.X]
+end
+get_element_size_um_ZYX(::Nothing) = nothing
+
+function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer)
+    A = Mmap.mmap(filename, Vector{UInt8})
+    # 8 bits per byte
+    expected_bytes = prod(array_size) * bit_depth ÷ 8
+    if sizeof(A) != expected_bytes
+        if mod(sizeof(A), expected_bytes) == 0
+            # Calculate the number of timepoints 
+            array_size = (array_size..., sizeof(A) ÷ expected_bytes)
+            @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
+        end
+    end
+    if bit_depth == 12
+        A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
+        A16 = convert(Array{UInt16}, A12)
+    elseif bit_depth == 16
+        A16 = reshape(reinterpret(UInt16,A), array_size)
+    else
+        error("Do not know how to handle data with bit depth of $bit_depth")
+    end
+    A16
+end
+
+function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata = metadata(filename))
+    array_size = Tuple(md.dimensions_XYZ)
+    bit_depth = md.bit_depth
+    read_stack_as_uint16_array(filename, array_size, bit_depth)
+end
 
 # Create a UInt24 external link to an existing stack file
 # This will work with h5py but not with the FIJI HDF5 readers, yet
@@ -371,7 +500,7 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, rethrow_errors = false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
@@ -386,7 +515,7 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint12_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             elseif md.bit_depth == 16
                 h5_filename = replace(stack, ".stack" => ".h5")
@@ -394,13 +523,16 @@ function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, kwargs...)
                 println("Resaving $stack_full_path to $h5_filename")
                 if !mock
                     resave_uint16_stack_as_uint16_hdf5(stack_full_path, Tuple(md.dimensions_XYZ);
-                        h5_filename, metadata=md, kwargs...)
+                        h5_filename, metadata=md, rethrow_errors, kwargs...)
                 end
             else
                 error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
             end
         catch err
-            @warn "Could not resave $stack in $in_path. Continuing..." err
+            @warn "Could not resave $stack in $in_path. Continuing to the next stack..." err
+            if rethrow_errors
+                rethrow(err)
+            end
         end
     end
 end
@@ -419,13 +551,34 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
             help = "Deflate compression level"
             arg_type = Int
             default = 0
+        "--blosc"
+            help = "Blosc compression level"
+            arg_type = Int
+            default = 0
+        "--zstd"
+            help = "Zstd compression level"
+            arg_type = Int
+            default = 0
         "--shuffle"
             help = "Do byte shuffle"
             action = :store_true
         "--chunk"
             help = "Chunk size"
             arg_type = Tuple{Int, Int, Int}
-            default = (128, 128, 32)
+            default = (128, 128, 17)
+        "--one_file_per_timepoint", "-o"
+            help = "Save one .h5 file per timepoint"
+            action = :store_true
+        "--suffix"
+            help = "Append (or override) a suffix. Not the file extension."
+            arg_type = String
+            default = ""
+        "--force", "-f"
+            help = "Overwrite files if they exist."
+            action = :store_true
+        "--debug"
+            help = "Activate debugging features and logging"
+            action = :store_true
         "in_path"
             help = "Directory with .stack files"
             required = true
@@ -435,14 +588,34 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
     end
 
     a = parse_args(ARGS, s)
-    mock = a["mock"]
-    shuffle = a["shuffle"] ? (shuffle = (),) : ()
-    deflate = a["deflate"] == 0 ? () : (deflate = a["deflate"],)
-    chunk = a["chunk"] == (0,0,0) ? () : (chunk = a["chunk"],)
+    # Keyword Dictionary
+    k = Dict{Symbol, Any}()
+    k[:mock] = a["mock"]
+    a["shuffle"]      && (k[:shuffle] = ())
+    a["deflate"] != 0 && (k[:deflate] = a["deflate"])
+    a["blosc"] != 0   && (k[:blosc] = a["blosc"])
+    a["zstd"] != 0    && (k[:filters] = ZstdFilter(a["zstd"]))
+    a["chunk"] != (0,0,0) && (k[:chunk] = a["chunk"])
+    a["one_file_per_timepoint"] && (k[:one_file_per_timepoint] = true)
+    !isempty(a["suffix"]) && (k[:suffix] = a["suffix"])
+    a["force"] && (k[:force] = true)
+    if a["debug"]
+        ENV["JULIA_DEBUG"] = MatrixMicroscopeUtils
+        k[:rethrow_errors] = true
+    end
 
-    @debug a
+    @debug "Parsed args and keywords" a k
 
-    batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"]; mock, chunk..., shuffle..., deflate..., kwargs...)
+    batch_resave_stacks_as_hdf5(a["in_path"], a["out_path"];
+        k...,
+        kwargs...)
+end
+
+function check_file_existence(file::AbstractString; force::Bool = false)
+    if !force && isfile(file)
+        error("$file exists. Not overwriting the file. Consider changing the suffix or forcing.")
+    end
+    nothing
 end
 
 function ArgParse.parse_item(::Type{Tuple{Int, Int, Int}}, x::AbstractString)
@@ -494,12 +667,15 @@ function metadata(filename::AbstractString)
     metadata = parse_info_xml(md_fn)
 end
 
-function try_metadata(filename::AbstractString)
+function try_metadata(filename::AbstractString; rethrow_errors = false)
     md = nothing
     try
         md = metadata(filename)
     catch err
         @warn "Could not load metadata XML file for $filename" err
+        if rethrow_errors
+            rethrow(err)
+        end
     end
     md
 end
@@ -657,5 +833,7 @@ end
 function xml_string(metadata::MatrixMetadata)
     string(generate_xml(metadata))
 end
+
+include("links.jl")
 
 end # module MatrixMicroscopeUtils
