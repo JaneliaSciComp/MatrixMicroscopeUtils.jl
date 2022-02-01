@@ -17,6 +17,7 @@ Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 UInt12Arrays = "c28d94ed-d5b6-4a5f-906b-ac5b0f674341"
 
 [compat]
+H5Zblosc = "0.1"
 HDF5 = "0.16.0"
 LightXML = "0.9"
 UInt12Arrays = "0.2"
