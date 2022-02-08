@@ -11,6 +11,7 @@ using LightXML
 using Printf
 using ArgParse
 using Distributed
+using PaddedViews
 
 export MatrixMetadata
 export resave_uint12_stack_as_uint16_hdf5
@@ -835,5 +836,6 @@ function xml_string(metadata::MatrixMetadata)
 end
 
 include("links.jl")
+include("chunk.jl")
 
 end # module MatrixMicroscopeUtils
