@@ -20,12 +20,12 @@ Create a HDF5 file with links that point into a raw stack on a per timepoint bas
 """
 function link_external_raw_16bit_data(
     filename::AbstractString;
-    h5_filename = rename_file_as_h5(filename; suffix =  "link"),
+    h5_filename::AbstractString = rename_file_as_h5(filename; suffix =  "link"),
     rethrow_errors::Bool = false,
     force::Bool = false,
     timepoint_range::AbstractRange = 0:typemax(Int)-1,
     metadata::MatrixMetadata = try_metadata(filename; rethrow_errors)
-    )
+)
     @assert metadata.bit_depth == 16 "Bit depth must be 16 for $filename to link"
     _bytes_per_stack = bytes_per_stack(metadata)
     ntp = num_timepoints(filesize(filename), metadata)
