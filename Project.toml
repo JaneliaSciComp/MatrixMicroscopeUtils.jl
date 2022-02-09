@@ -25,6 +25,7 @@ H5Zlz4 = "0.1"
 H5Zzstd = "0.1"
 HDF5 = "0.16.0"
 LightXML = "0.9"
+PaddedViews = "0.5"
 UInt12Arrays = "0.2"
 julia = "1"
 
