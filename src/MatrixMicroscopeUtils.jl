@@ -837,5 +837,6 @@ end
 
 include("links.jl")
 include("chunk.jl")
+include("template.jl")
 
 end # module MatrixMicroscopeUtils
