@@ -47,6 +47,8 @@ mutable struct MatrixMetadata
     defect_correction::String
     experiment_notes::String
     cam::Int
+    header_size::Int
+    timepoints_per_stack::Int
     metadata_file::String
     xml::String
     MatrixMetadata() = new()
@@ -781,6 +783,8 @@ function parse_info_xml(dict::Dict{AbstractString, AbstractString}, cam = extrac
     s.defect_correction = dict["defect_correction"]
     s.experiment_notes = dict["experiment_notes"]
     s.metadata_file = get(dict, "metadata_file", "")
+    s.header_size = parse(Int, get(dict, "header_size", "0"))
+    s.timepoints_per_stack = parse(Int, get(dict, "timepoints_per_stack", "0"))
     # Capture the original XML file
     s.xml = get(dict, "xml", xml_string(s))
     s
@@ -819,6 +823,8 @@ function generate_xml(metadata::MatrixMetadata)
     info_node(xroot, "defect_correction", metadata.defect_correction)
     info_node(xroot, "experiment_notes", metadata.experiment_notes)
     info_node(xroot, "cam", metadata.cam)
+    info_node(xroot, "header_size", metadata.header_size)
+    info_node(xroot, "timepoints_per_stack", metadata.timepoints_per_stack)
     xdoc
 end
 

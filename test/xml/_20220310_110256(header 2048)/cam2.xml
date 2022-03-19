@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<push_config version="1.0">
+<info software_version="1.0.02617" />
+<info data_header="" />
+<info cam="2" />
+<info specimen_name="sample" />
+<info tile_XYZ_um="-280.000_0.000_0.000" />
+<info sampling_XYZ_um="0.34375_0.34375_3.437" />
+<info roi_XY="2304_4608_888_1704" />
+<info channel="1" />
+<info wavelength_nm="488" />
+<info laser_power="0.00%_0.00mW" />
+<info frame_exposure_time_ms="1.33" />
+<info detection_filter="test" />
+<info dimensions_XYZ="2304_816_17" />
+<info stack_direction="+Z" />
+<info planes="1_17" />
+<info timepoints="936" />
+<info bit_depth="12" />
+<info defect_correction="off" />
+<info experiment_notes="" />
+<info header_size="2048" />
+<info timepoints_per_stack="44" />
+</push_config>
