@@ -31,15 +31,15 @@ mutable struct MatrixMetadata
     software_version::String
     data_header::String
     specimen_name::String
-    tile_XYZ_um::NamedTuple{XYZ, NTuple{3,Float64}}
-    sampling_XYZ_um::NamedTuple{XYZ, NTuple{3,Float64}}
-    roi_XY::NamedTuple{(:left, :top, :width, :height), NTuple{4,Int}}
+    tile_XYZ_um::NamedTuple{XYZ,NTuple{3,Float64}}
+    sampling_XYZ_um::NamedTuple{XYZ,NTuple{3,Float64}}
+    roi_XY::NamedTuple{(:left, :top, :width, :height),NTuple{4,Int}}
     channel::Int
     wavelength_nm::Float64
-    laser_power::NamedTuple{(:percent, :mW), NTuple{2,Float64}}
+    laser_power::NamedTuple{(:percent, :mW),NTuple{2,Float64}}
     frame_exposure_time_ms::Float64
     detection_filter::String
-    dimensions_XYZ::NamedTuple{XYZ, NTuple{3,Int}}
+    dimensions_XYZ::NamedTuple{XYZ,NTuple{3,Int}}
     stack_direction::String
     planes::UnitRange{Int}
     timepoints::Integer
@@ -140,19 +140,21 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 └   expected_bytes = 47941632
 ```
 """
-function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
-                                            array_size::Dims;
-                                            suffix::AbstractString = "uint16",
-                                            h5_filename = rename_file_as_h5(filename; suffix),
-                                            split_timepoints::Bool = true,
-                                            one_file_per_timepoint::Bool = false,
-                                            timepoint_range = 0:typemax(Int)-1,
-                                            metadata::Union{MatrixMetadata, Nothing} = nothing,
-                                            rethrow_errors::Bool = false,
-                                            kwargs...)
+function resave_uint12_stack_as_uint16_hdf5(
+    filename::AbstractString,
+    array_size::Dims;
+    suffix::AbstractString="uint16",
+    h5_filename=rename_file_as_h5(filename; suffix),
+    split_timepoints::Bool=true,
+    one_file_per_timepoint::Bool=false,
+    timepoint_range=0:typemax(Int)-1,
+    metadata::Union{MatrixMetadata,Nothing}=nothing,
+    rethrow_errors::Bool=false,
+    kwargs...
+)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 12-bit depth, 8 bits per byte
-    expected_bytes = prod(array_size)* 12 ÷ 8
+    expected_bytes = prod(array_size) * 12 ÷ 8
     if length(A) != expected_bytes
         if mod(length(A), expected_bytes) == 0
             # Calculate the number of timepoints 
@@ -160,7 +162,7 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString,
             @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
         end
     end
-    A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
+    A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
     A16 = convert(Array{UInt16}, A12)
     if metadata === nothing
         metadata = try_metadata(filename; rethrow_errors)
@@ -182,25 +184,27 @@ function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString; kwargs...)
     try
         md = metadata(filename)
         @assert md.bit_depth == 12 "Bit depth is not 12 according to metadata XML file"
-        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
     catch err
         throw(ErrorException("Cannot determine array size in $filename"))
     end
 end
 
-function resave_uint16_stack_as_uint16_hdf5(filename::AbstractString,
-                                            array_size::Dims;
-                                            suffix::AbstractString = "",
-                                            h5_filename::AbstractString = rename_file_as_h5(filename; suffix),
-                                            split_timepoints::Bool = true,
-                                            one_file_per_timepoint::Bool = false,
-                                            timepoint_range::AbstractRange = 0:typemax(Int)-1,
-                                            metadata::Union{MatrixMetadata, Nothing} = nothing,
-                                            rethrow_errors::Bool = false,
-                                            kwargs...)
+function resave_uint16_stack_as_uint16_hdf5(
+    filename::AbstractString,
+    array_size::Dims;
+    suffix::AbstractString="",
+    h5_filename::AbstractString=rename_file_as_h5(filename; suffix),
+    split_timepoints::Bool=true,
+    one_file_per_timepoint::Bool=false,
+    timepoint_range::AbstractRange=0:typemax(Int)-1,
+    metadata::Union{MatrixMetadata,Nothing}=nothing,
+    rethrow_errors::Bool=false,
+    kwargs...
+)
     A16 = Mmap.mmap(filename, Vector{UInt16})
     # 16-bit depth, 8 bits per byte
-    expected_bytes = prod(array_size)* 16 ÷ 8
+    expected_bytes = prod(array_size) * 16 ÷ 8
     if sizeof(A16) != expected_bytes
         if mod(sizeof(A16), expected_bytes) == 0
             # Calculate the number of timepoints 
@@ -229,7 +233,7 @@ function resave_uint16_stack_as_uint16_hdf5(filename; kwargs...)
     try
         md = metadata(filename)
         @assert md.bit_depth == 16 "Bit depth is not 16 according to metadata XML file"
-        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
     catch err
         throw(ErrorException("Cannot determine array size in $filename"))
     end
@@ -246,9 +250,9 @@ function resave_stack_as_uint16_hdf5(filename; kwargs...)
         return nothing
     end
     if md.bit_depth == 16
-        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+        resave_uint16_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
     elseif md.bit_depth == 12
-        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata = md, kwargs...)
+        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
     else
         error("Do not know how to resave bit depth of $(md.bit_depth) to an UInt16 HDF5 file")
     end
@@ -258,14 +262,16 @@ end
 # Can we simplify this by removing the filename argument?
 # 1. We need the dataset_name
 # 2. We need the raw XML
-function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
-                                   dataset_name::AbstractString;
-                                   h5_filename::AbstractString = rename_file_as_h5(dataset_name*".stack"),
-                                   split_timepoints::Bool = true,
-                                   timepoint_range::AbstractRange = 0:typemax(Int)-1,
-                                   metadata::Union{MatrixMetadata, Nothing} = nothing,
-                                   force::Bool = false,
-                                   kwargs...)
+function save_uint16_array_as_hdf5(
+    A16::AbstractArray{UInt16},
+    dataset_name::AbstractString;
+    h5_filename::AbstractString=rename_file_as_h5(dataset_name * ".stack"),
+    split_timepoints::Bool=true,
+    timepoint_range::AbstractRange=0:typemax(Int)-1,
+    metadata::Union{MatrixMetadata,Nothing}=nothing,
+    force::Bool=false,
+    kwargs...
+)
     @info "Saving file as $h5_filename"
     check_file_existence(h5_filename; force)
     f = h5open(h5_filename, "w")
@@ -282,7 +288,7 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
             # Create a group named after the camera
             parent = create_group(f, "CM" * last(m.captures))
         end
-        data_range = t : t + size(A16,4) - 1
+        data_range = t:t+size(A16, 4)-1
         timepoint_range = intersect(timepoint_range, data_range)
 
         # Capture metadata and copy it into the HDF5 file
@@ -292,12 +298,12 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
             # Each timepoint will be in a separate dataset
             last_t = last(timepoint_range)
             e = get_element_size_um_ZYX(metadata)
-            for slice in eachslice(A16, dims = 4)
+            for slice in eachslice(A16, dims=4)
                 dataset_name = @sprintf "TM%07d" t
                 write_array_dataset(parent, dataset_name, slice, e; kwargs...)
                 t = t + 1
                 if t > last_t
-                    break;
+                    break
                 end
             end
         else
@@ -314,15 +320,15 @@ function save_uint16_array_as_hdf5(A16::AbstractArray{UInt16},
 end
 
 function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
-                                          dataset_name::AbstractString;
-                                          timepoint_range::AbstractRange = 0:typemax(Int)-1,
-                                          metadata::Union{MatrixMetadata, Nothing} = nothing,
-                                          out_path::AbstractString = pwd(),
-                                          suffix::AbstractString = "single_timepoint",
-                                          h5_ext::AbstractString = "h5",
-                                          force::Bool = false,
-                                          rethrow_errors::Bool = false,
-                                          kwargs...)
+    dataset_name::AbstractString;
+    timepoint_range::AbstractRange=0:typemax(Int)-1,
+    metadata::Union{MatrixMetadata,Nothing}=nothing,
+    out_path::AbstractString=pwd(),
+    suffix::AbstractString="single_timepoint",
+    h5_ext::AbstractString="h5",
+    force::Bool=false,
+    rethrow_errors::Bool=false,
+    kwargs...)
     m = match(r"TM(\d+)_CM(\d+)", dataset_name)
     t = 0
     prefix = ""
@@ -335,9 +341,9 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
     else
         prefix = dataset_name * "_"
     end
-    data_range = t : t + size(A16,4) - 1
+    data_range = t:t+size(A16, 4)-1
     timepoint_range = intersect(timepoint_range, data_range)
-    data = A16[:, :, :, timepoint_range .- (t - 1)]
+    data = A16[:, :, :, timepoint_range.-(t-1)]
     e = get_element_size_um_ZYX(metadata)
     if !isempty(out_path)
         mkpath(out_path)
@@ -369,27 +375,27 @@ function save_one_hdf5_file_per_timepoint(A16::AbstractArray{UInt16},
     end
 end
 
-function write_cam_metadata_to_hdf5(parent::Union{HDF5.Group, HDF5.File}, metadata::MatrixMetadata)
+function write_cam_metadata_to_hdf5(parent::Union{HDF5.Group,HDF5.File}, metadata::MatrixMetadata)
     write_attribute(parent, "xml_metadata", metadata.xml)
     metadata_dict = parse_info_xml_to_dict(LightXML.parse_string(metadata.xml))
-    for (key,value) in metadata_dict
+    for (key, value) in metadata_dict
         write_attribute(parent, key, value)
     end
     return nothing
 end
 write_cam_metadata_to_hdf5(parent, metadata::Nothing) = nothing
 
-function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, metadata::MatrixMetadata; kwargs...)
+function write_array_dataset(parent::Union{HDF5.Group,HDF5.File}, dataset_name::AbstractString, array::AbstractArray, metadata::MatrixMetadata; kwargs...)
     e = get_element_size_um_ZYX(metadata)
     write_array_dataset(parent, dataset_name, array, e; kwargs...)
 end
-function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, element_size_um_ZYX::Vector{Float64}; kwargs...)
+function write_array_dataset(parent::Union{HDF5.Group,HDF5.File}, dataset_name::AbstractString, array::AbstractArray, element_size_um_ZYX::Vector{Float64}; kwargs...)
     d, dtype = create_dataset(parent, dataset_name, array; kwargs...)
     write_dataset(d, dtype, array)
     # HDF5 Vibez Plugin for FIJI
     write_attribute(d, "element_size_um", element_size_um_ZYX)
 end
-function write_array_dataset(parent::Union{HDF5.Group, HDF5.File}, dataset_name::AbstractString, array::AbstractArray, ::Nothing; kwargs...)
+function write_array_dataset(parent::Union{HDF5.Group,HDF5.File}, dataset_name::AbstractString, array::AbstractArray, ::Nothing; kwargs...)
     d, dtype = create_dataset(parent, dataset_name, array; kwargs...)
     write_dataset(d, dtype, array)
 end
@@ -412,17 +418,17 @@ function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, 
         end
     end
     if bit_depth == 12
-        A12 = UInt12Array{UInt16, typeof(A), length(array_size)}(A, array_size)
+        A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
         A16 = convert(Array{UInt16}, A12)
     elseif bit_depth == 16
-        A16 = reshape(reinterpret(UInt16,A), array_size)
+        A16 = reshape(reinterpret(UInt16, A), array_size)
     else
         error("Do not know how to handle data with bit depth of $bit_depth")
     end
     A16
 end
 
-function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata = metadata(filename))
+function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata=metadata(filename))
     array_size = Tuple(md.dimensions_XYZ)
     bit_depth = md.bit_depth
     read_stack_as_uint16_array(filename, array_size, bit_depth)
@@ -503,7 +509,7 @@ function link_uint12_stack_to_uint24_hdf5(filename::AbstractString,
 end
 =#
 
-function batch_resave_stacks_as_hdf5(in_path, out_path; mock = false, rethrow_errors = false, kwargs...)
+function batch_resave_stacks_as_hdf5(in_path, out_path; mock=false, rethrow_errors=false, kwargs...)
     @assert isdir(in_path) "$in_path is not an existing directory"
     in_stacks = [file for file in readdir(in_path) if endswith(file, ".stack")]
     mkpath(out_path)
@@ -592,13 +598,13 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
 
     a = parse_args(ARGS, s)
     # Keyword Dictionary
-    k = Dict{Symbol, Any}()
+    k = Dict{Symbol,Any}()
     k[:mock] = a["mock"]
-    a["shuffle"]      && (k[:shuffle] = ())
+    a["shuffle"] && (k[:shuffle] = ())
     a["deflate"] != 0 && (k[:deflate] = a["deflate"])
-    a["blosc"] != 0   && (k[:blosc] = a["blosc"])
-    a["zstd"] != 0    && (k[:filters] = ZstdFilter(a["zstd"]))
-    a["chunk"] != (0,0,0) && (k[:chunk] = a["chunk"])
+    a["blosc"] != 0 && (k[:blosc] = a["blosc"])
+    a["zstd"] != 0 && (k[:filters] = ZstdFilter(a["zstd"]))
+    a["chunk"] != (0, 0, 0) && (k[:chunk] = a["chunk"])
     a["one_file_per_timepoint"] && (k[:one_file_per_timepoint] = true)
     !isempty(a["suffix"]) && (k[:suffix] = a["suffix"])
     a["force"] && (k[:force] = true)
@@ -614,17 +620,17 @@ function batch_resave_stacks_as_hdf5(; kwargs...)
         kwargs...)
 end
 
-function check_file_existence(file::AbstractString; force::Bool = false)
+function check_file_existence(file::AbstractString; force::Bool=false)
     if !force && isfile(file)
         error("$file exists. Not overwriting the file. Consider changing the suffix or forcing.")
     end
     nothing
 end
 
-function ArgParse.parse_item(::Type{Tuple{Int, Int, Int}}, x::AbstractString)
-    strs = split(x, ","; keepempty = false)
+function ArgParse.parse_item(::Type{Tuple{Int,Int,Int}}, x::AbstractString)
+    strs = split(x, ","; keepempty=false)
     if isempty(strs)
-        return (0,0,0)
+        return (0, 0, 0)
     else
         @assert length(strs) == 3 "chunk must consist of three comma-separated integers"
         return (parse.(Int, strs)...,)
@@ -641,7 +647,7 @@ function rename_file_as_h5(filename, hdf5_ext="h5"; suffix="")
     else
         suffix = "_" * suffix
     end
-    replace(filename, ".stack" => suffix*"."*hdf5_ext)
+    replace(filename, ".stack" => suffix * "." * hdf5_ext)
 end
 
 """
@@ -670,7 +676,7 @@ function metadata(filename::AbstractString)
     metadata = parse_info_xml(md_fn)
 end
 
-function try_metadata(filename::AbstractString; rethrow_errors = false)
+function try_metadata(filename::AbstractString; rethrow_errors=false)
     md = nothing
     try
         md = metadata(filename)
@@ -725,17 +731,17 @@ function parse_info_xml_to_dict(xml::XMLDocument)
     dict
 end
 
-function parse_info_xml(xml, cam = extract_cam_number(xml))
+function parse_info_xml(xml, cam=extract_cam_number(xml))
     dict = parse_info_xml_to_dict(xml)
     parse_info_xml(dict, cam)
 end
 
-function parse_info_xml(dict::Dict{AbstractString, AbstractString}, cam = extract_cam_number(dict))
+function parse_info_xml(dict::Dict{AbstractString,AbstractString}, cam=extract_cam_number(dict))
     s = MatrixMetadata()
     if haskey(dict, "cam")
         dcam = parse(Int, dict["cam"])
         @assert dcam == cam || cam === nothing "Camera number does not match `cam` argument."
-        if cam  === nothing
+        if cam === nothing
             s.cam = dcam
         else
             s.cam = cam
@@ -746,22 +752,22 @@ function parse_info_xml(dict::Dict{AbstractString, AbstractString}, cam = extrac
     s.data_header = dict["data_header"]
     s.specimen_name = dict["specimen_name"]
     m = match(r"X?=?(.*)_Y?=?(.*)_Z?=?(.*)", dict["tile_XYZ_um"])
-    s.tile_XYZ_um = NamedTuple{(:X, :Y, :Z)}( (parse.(Float64, m.captures)...,) )
+    s.tile_XYZ_um = NamedTuple{(:X, :Y, :Z)}((parse.(Float64, m.captures)...,))
     m = match(r"(.*)_(.*)_(.*)", dict["sampling_XYZ_um"])
     if m === nothing
         m = match(r"(.*), (.*), (.*)", dict["sampling_XYZ_um"])
     end
-    s.sampling_XYZ_um = NamedTuple{(:X, :Y, :Z)}( (parse.(Float64, m.captures)...,) )
+    s.sampling_XYZ_um = NamedTuple{(:X, :Y, :Z)}((parse.(Float64, m.captures)...,))
     if haskey(dict, "roi_XY")
         m = match(r"(.*)_(.*)_(.*)_(.*)", dict["roi_XY"])
     else
         m = match(r"(.*)_(.*)_(.*)_(.*)", dict["roi_XY_cam$cam"])
     end
-    s.roi_XY = NamedTuple{(:left, :top, :width, :height)}( (parse.(Int, m.captures)...,) )
+    s.roi_XY = NamedTuple{(:left, :top, :width, :height)}((parse.(Int, m.captures)...,))
     s.channel = parse.(Int, get(dict, "channel", "0"))
     s.wavelength_nm = parse.(Float64, dict["wavelength_nm"])
     m = match(r"(.*)%_(.*)mW", dict["laser_power"])
-    s.laser_power = NamedTuple{(:percent, :mW)}( (parse.(Float64, m.captures)...,) )
+    s.laser_power = NamedTuple{(:percent, :mW)}((parse.(Float64, m.captures)...,))
     if haskey(dict, "frame_exposure_time_ms")
         s.frame_exposure_time_ms = parse(Float64, dict["frame_exposure_time_ms"])
     else
@@ -773,7 +779,7 @@ function parse_info_xml(dict::Dict{AbstractString, AbstractString}, cam = extrac
     else
         m = match(r"(.*)x(.*)x(.*)", dict["dimensions_XYZ_cam$cam"])
     end
-    s.dimensions_XYZ = NamedTuple{(:X, :Y, :Z)}( (parse.(Int, m.captures)...,) )
+    s.dimensions_XYZ = NamedTuple{(:X, :Y, :Z)}((parse.(Int, m.captures)...,))
     s.stack_direction = dict["stack_direction"]
     m = match(r"(\d+)-?_?(\d+)", dict["planes"])
     plane_endpoints = parse.(Int, m.captures)
