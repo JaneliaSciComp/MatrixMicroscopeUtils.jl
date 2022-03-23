@@ -143,13 +143,13 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 function resave_uint12_stack_as_uint16_hdf5(
     filename::AbstractString,
     array_size::Dims;
-    suffix::AbstractString="uint16",
-    h5_filename=rename_file_as_h5(filename; suffix),
-    split_timepoints::Bool=true,
-    one_file_per_timepoint::Bool=false,
-    timepoint_range=0:typemax(Int)-1,
-    metadata::Union{MatrixMetadata,Nothing}=nothing,
-    rethrow_errors::Bool=false,
+    suffix::AbstractString = "uint16",
+    h5_filename = rename_file_as_h5(filename; suffix),
+    split_timepoints::Bool = true,
+    one_file_per_timepoint::Bool = false,
+    timepoint_range = 0:typemax(Int)-1,
+    metadata::Union{MatrixMetadata,Nothing} = nothing,
+    rethrow_errors::Bool = false,
     kwargs...
 )
     if metadata === nothing
@@ -174,7 +174,10 @@ function resave_uint12_stack_as_uint16_hdf5(
         for t in 1:num_timepoints
             byte_offset = expected_bytes*(t-1)+metadata.header_size
             stack_bytes = expected_bytes - metadata.header_size
-            A16[:, :, :, t] .= reshape( convert(Array{UInt16}, UInt12Array{UInt16, typeof(A), length(array_size)-1}(@view(A[(1:stack_bytes) .+ byte_offset]), array_size[1:end-1] )), array_size[1:end-1]... )
+            stack = @view A[(1:stack_bytes) .+ byte_offset]
+            uint12_stack = UInt12Array{UInt16, typeof(A), length(array_size)-1}(stack, array_size[1:end-1])
+            # We may be able to avoid an allocation here
+            A16[:, :, :, t] .= convert(Array{UInt16}, uint12_stack)
         end
     end
 
@@ -192,13 +195,14 @@ end
 
 # Locate the metadata file to determine the file size
 function resave_uint12_stack_as_uint16_hdf5(filename::AbstractString; kwargs...)
+    md = nothing
     try
         md = metadata(filename)
         @assert md.bit_depth == 12 "Bit depth is not 12 according to metadata XML file"
-        resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
     catch err
         throw(ErrorException("Cannot determine array size in $filename"))
     end
+    resave_uint12_stack_as_uint16_hdf5(filename, Tuple(md.dimensions_XYZ); metadata=md, kwargs...)
 end
 
 function resave_uint16_stack_as_uint16_hdf5(
@@ -449,9 +453,12 @@ function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, 
             num_timepoints = array_size[end]
             A16 = Array{UInt16}(undef, array_size)
             for t in 1:num_timepoints
-                byte_offset = expected_bytes*(t-1) + header_size
+                byte_offset = expected_bytes*(t-1)+header_size
                 stack_bytes = expected_bytes - header_size
-                A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_bytes) .+ byte_offset]) ), array_size[1:end-1]... )
+                stack = @view A[(1:stack_bytes) .+ byte_offset]
+                uint12_stack = UInt12Array{UInt16, typeof(A), length(array_size)-1}(stack, array_size[1:end-1])
+                # We may be able to avoid an allocation here
+                A16[:, :, :, t] .= convert(Array{UInt16}, uint12_stack)
             end
         end
     elseif bit_depth == 16
@@ -477,7 +484,7 @@ end
 function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata=metadata(filename))
     array_size = Tuple(md.dimensions_XYZ)
     bit_depth = md.bit_depth
-    read_stack_as_uint16_array(filename, array_size, bit_depth)
+    read_stack_as_uint16_array(filename, array_size, bit_depth; header_size = md.header_size)
 end
 
 # Create a UInt24 external link to an existing stack file
