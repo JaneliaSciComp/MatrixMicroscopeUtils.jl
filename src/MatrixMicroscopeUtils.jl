@@ -152,9 +152,12 @@ function resave_uint12_stack_as_uint16_hdf5(
     rethrow_errors::Bool=false,
     kwargs...
 )
+    if metadata === nothing
+        metadata = try_metadata(filename; rethrow_errors)
+    end
     A = Mmap.mmap(filename, Vector{UInt8})
     # 12-bit depth, 8 bits per byte
-    expected_bytes = prod(array_size) * 12 ÷ 8
+    expected_bytes = prod(array_size) * 12 ÷ 8 + metadata.header_size
     if length(A) != expected_bytes
         if mod(length(A), expected_bytes) == 0
             # Calculate the number of timepoints 
@@ -162,11 +165,19 @@ function resave_uint12_stack_as_uint16_hdf5(
             @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
         end
     end
-    A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
-    A16 = convert(Array{UInt16}, A12)
-    if metadata === nothing
-        metadata = try_metadata(filename; rethrow_errors)
+    if metadata.header_size == 0
+        A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
+        A16 = convert(Array{UInt16}, A12)
+    else
+        num_timepoints = array_size[end]
+        A16 = Array{UInt16}(undef, array_size)
+        for t in 1:num_timepoints
+            byte_offset = expected_bytes*(t-1)+metadata.header_size
+            stack_bytes = expected_bytes - metadata.header_size
+            A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_bytes) .+ byte_offset]) ), array_size[1:end-1]... )
+        end
     end
+
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
         out_path = dirname(h5_filename)
@@ -202,9 +213,12 @@ function resave_uint16_stack_as_uint16_hdf5(
     rethrow_errors::Bool=false,
     kwargs...
 )
+    if metadata === nothing
+        metadata = try_metadata(filename; rethrow_errors)
+    end
     A16 = Mmap.mmap(filename, Vector{UInt16})
     # 16-bit depth, 8 bits per byte
-    expected_bytes = prod(array_size) * 16 ÷ 8
+    expected_bytes = prod(array_size) * 16 ÷ 8 + metadata.header_size
     if sizeof(A16) != expected_bytes
         if mod(sizeof(A16), expected_bytes) == 0
             # Calculate the number of timepoints 
@@ -212,9 +226,18 @@ function resave_uint16_stack_as_uint16_hdf5(
             @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
         end
     end
-    A16 = reshape(A16, array_size)
-    if metadata === nothing
-        metadata = try_metadata(filename; rethrow_errors)
+    if metdata.header_size == 0
+        A16 = reshape(A16, array_size)
+    else
+        new_A16 = Array{UInt16}(undef, array_size)
+        num_timepoints = array_size[end]
+        @assert iseven(metadata.header_size)
+        for t in 1:num_timepoints
+            uint16_offset = (expected_bytes*(t-1) + metadata.header_size) ÷ 2
+            stack_uint16s = (expected_bytes - metadata.header_size) ÷ 2
+            new_A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_uint16s) .+ uint16_offset]) ), array_size[1:end-1]...)
+        end
+        A16 = new_A16
     end
     dataset_name, _ = Base.Filesystem.splitext(basename(filename))
     if one_file_per_timepoint
@@ -406,10 +429,10 @@ function get_element_size_um_ZYX(metadata::MatrixMetadata)
 end
 get_element_size_um_ZYX(::Nothing) = nothing
 
-function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer)
+function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer; header_size::Int = 0)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 8 bits per byte
-    expected_bytes = prod(array_size) * bit_depth ÷ 8
+    expected_bytes = prod(array_size) * bit_depth ÷ 8 + header_size
     if sizeof(A) != expected_bytes
         if mod(sizeof(A), expected_bytes) == 0
             # Calculate the number of timepoints 
@@ -418,10 +441,32 @@ function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, 
         end
     end
     if bit_depth == 12
-        A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
-        A16 = convert(Array{UInt16}, A12)
+        if header_size == 0
+            A12 = UInt12Array{UInt16,typeof(A),length(array_size)}(A, array_size)
+            A16 = convert(Array{UInt16}, A12)
+        else
+            num_timepoints = array_size[end]
+            A16 = Array{UInt16}(undef, array_size)
+            for t in 1:num_timepoints
+                byte_offset = expected_bytes*(t-1) + header_size
+                stack_bytes = expected_bytes - header_size
+                A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_bytes) .+ byte_offset]) ), array_size[1:end-1]... )
+            end
+        end
     elseif bit_depth == 16
-        A16 = reshape(reinterpret(UInt16, A), array_size)
+        if header_size == 0
+            A16 = reshape(reinterpret(UInt16, A), array_size)
+        else
+            new_A16 = Array{UInt16}(undef, array_size)
+            num_timepoints = array_size[end]
+            @assert iseven(header_size)
+            for t in 1:num_timepoints
+                byte_offset = expected_bytes*(t-1) + metadata.header_size
+                stack_bytes = expected_bytes - metadata.header_size
+                new_A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_bytes) .+ byte_offset]) ), array_size[1:end-1]...)
+            end
+            A16 = new_A16
+        end
     else
         error("Do not know how to handle data with bit depth of $bit_depth")
     end
@@ -707,7 +752,7 @@ function num_timepoints(filesize::Integer, metadata::MatrixMetadata)
 end
 
 function bytes_per_stack(info::MatrixMetadata)
-    prod(info.dimensions_XYZ) * info.bit_depth ÷ 8
+    prod(info.dimensions_XYZ) * info.bit_depth ÷ 8 + info.header_size
 end
 
 function parse_info_xml_to_dict(xmlfilename::AbstractString)
