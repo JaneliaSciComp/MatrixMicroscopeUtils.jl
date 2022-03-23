@@ -174,7 +174,7 @@ function resave_uint12_stack_as_uint16_hdf5(
         for t in 1:num_timepoints
             byte_offset = expected_bytes*(t-1)+metadata.header_size
             stack_bytes = expected_bytes - metadata.header_size
-            A16[:, :, :, t] .= reshape( convert(Array{UInt16}, @view(A[(1:stack_bytes) .+ byte_offset]) ), array_size[1:end-1]... )
+            A16[:, :, :, t] .= reshape( convert(Array{UInt16}, UInt12Array{UInt16, typeof(A), length(array_size)-1}(@view(A[(1:stack_bytes) .+ byte_offset]), array_size[1:end-1] )), array_size[1:end-1]... )
         end
     end
 
@@ -293,6 +293,7 @@ function save_uint16_array_as_hdf5(
     timepoint_range::AbstractRange=0:typemax(Int)-1,
     metadata::Union{MatrixMetadata,Nothing}=nothing,
     force::Bool=false,
+    rethrow_errors::Bool = false,
     kwargs...
 )
     @info "Saving file as $h5_filename"
