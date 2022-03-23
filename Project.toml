@@ -1,7 +1,7 @@
 name = "MatrixMicroscopeUtils"
 uuid = "24e7d267-5f12-4ea2-b3b8-41e0e0cfae6c"
 authors = ["Mark Kittisopikul <kittisopikulm@janelia.hhmi.org> and contributors"]
-version = "0.4.0"
+version = "0.4.1"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
