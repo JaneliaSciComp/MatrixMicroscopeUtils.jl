@@ -1,0 +1,9 @@
+[deps]
+FixedPointNumbers = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+ImageMagick = "6218d12a-5da1-5696-b52f-db25d2ecc6d1"
+ImageShow = "4e3cecfd-b093-5904-9786-8bbb286a6a31"
+ImageView = "86fae568-95e7-573e-a6b2-d8a6b900c9ef"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
+MatrixMicroscopeUtils = "24e7d267-5f12-4ea2-b3b8-41e0e0cfae6c"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
