@@ -438,7 +438,7 @@ function get_element_size_um_ZYX(metadata::MatrixMetadata)
 end
 get_element_size_um_ZYX(::Nothing) = nothing
 
-function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer; header_size::Int = 0)
+function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, bit_depth::Integer; header_size::Int = 0, timepoints_per_stack = 0)
     A = Mmap.mmap(filename, Vector{UInt8})
     # 8 bits per byte
     expected_bytes = prod(array_size) * bit_depth ÷ 8 + header_size
@@ -446,9 +446,9 @@ function read_stack_as_uint16_array(filename::AbstractString, array_size::Dims, 
         if mod(sizeof(A), expected_bytes) == 0
             # Calculate the number of timepoints 
             array_size = (array_size..., sizeof(A) ÷ expected_bytes)
-            if metadata.timepoints_per_stack != array_size[end]
+            #if metadata.timepoints_per_stack != array_size[end]
                 @info "Inferred the number of time points from the file size being a multiple of the number of expected bytes" array_size expected_bytes
-            end
+            #end
         end
     end
     if bit_depth == 12
@@ -490,7 +490,7 @@ end
 function read_stack_as_uint16_array(filename::AbstractString, md::MatrixMetadata=metadata(filename))
     array_size = Tuple(md.dimensions_XYZ)
     bit_depth = md.bit_depth
-    read_stack_as_uint16_array(filename, array_size, bit_depth; header_size = md.header_size)
+    read_stack_as_uint16_array(filename, array_size, bit_depth; header_size = md.header_size, timepoints_per_stack = md.timepoints_per_stack)
 end
 
 # Create a UInt24 external link to an existing stack file
