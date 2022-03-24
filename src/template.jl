@@ -434,7 +434,7 @@ function group_datasets(
             move_link(parent, k, group)
         end
     end
-    return nothing
+    return group
 end
 
 function apply_template(
