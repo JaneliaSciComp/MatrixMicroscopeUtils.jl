@@ -40,6 +40,7 @@ ZeroTemplate(;
     num_timepoints = 44,
     bytes_per_timepoint = prod((3456, 816, 17))
 ) = ZeroTemplate(header_size, num_timepoints, bytes_per_timepoint)
+ZeroTemplate(m::MatrixMetadata) = ZeroTemplate(m.header_size, m.timepoints_per_stack, prod(Tuple(m.dimensions_XYZ)) * m.bit_depth ÷ 8)
 offsets(t::ZeroTemplate) = (0:t.num_timepoints) .* (t.header_size + t.bytes_per_timepoint) |> collect
 chunks(t::ZeroTemplate) = [zeros(UInt8, t.header_size) for tp in 1:t.num_timepoints]
 expected_file_size(t::ZeroTemplate) = (t.header_size + t.bytes_per_timepoint)*t.num_timepoints
