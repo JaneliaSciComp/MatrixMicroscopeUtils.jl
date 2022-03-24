@@ -4,6 +4,7 @@ using HDF5
 using Printf
 using CRC32c
 
+import ..MatrixMicroscopeUtils
 import ..MatrixMicroscopeUtils: MatrixMetadata
 
 export offsets, chunks, expected_file_size
@@ -478,6 +479,31 @@ function apply_template(
     save(backup, backup_filename, "a")
     apply_template(stack_filename, offsets(t), chunks(t); truncate_to_filesize)
     return backup
+end
+
+function batch_apply_uint24_template(basedir = pwd(); kwargs...)
+    stacks = filter(endswith(".stack"), readdir(basedir))
+    m = MatrixMicroscopeUtils.metadata(first(stacks))
+    uint24_template = get_uint24_template(m) # 24-bit integers (two 12-bit integers), multiple of a byte
+    backups = map(stacks) do stack
+        # Use a regular expression to match the stacks with the format TM0000000
+        regexm = match(r"TM(\d{7})", stack)
+        if !isnothing(regexm)
+            stack = joinpath(basedir, stack)
+            m = MatrixMicroscopeUtils.metadata(stack)
+            backup = apply_template(stack, uint24_template; kwargs...)
+            tp = parse(Int, first(regexm.captures))
+            if tp > 0
+                BinaryTemplates.translate_datasets(stack, tp)
+            end
+            h5open(stack, "r+") do h5f
+                g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
+                utils.write_cam_metadata_to_hdf5(g, m)
+            end
+        end
+        return backup
+    end
+    return backups
 end
 
 end # module BinaryTemplates
