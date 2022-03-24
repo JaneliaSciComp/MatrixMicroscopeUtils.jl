@@ -4,8 +4,11 @@ using HDF5
 using Printf
 using CRC32c
 
+import ..MatrixMicroscopeUtils: MatrixMetadata
+
 export offsets, chunks, expected_file_size
 export simple_hdf5_template, create_template, apply_template
+export get_template, get_uint24_template
 export translate
 
 abstract type AbstractBinaryTemplate end
@@ -26,6 +29,20 @@ end
 offsets(t::BinaryTemplate) = t.offsets
 chunks(t::BinaryTemplate) = t.chunks
 expected_file_size(t::BinaryTemplate) = t.expected_file_size
+
+struct ZeroTemplate <: AbstractBinaryTemplate
+    header_size::Int
+    num_timepoints::Int
+    bytes_per_timepoint::Int
+end
+ZeroTemplate(;
+    header_size = 2048,
+    num_timepoints = 44,
+    bytes_per_timepoint = prod((3456, 816, 17))
+) = ZeroTemplate(header_size, num_timepoints, bytes_per_timepoint)
+offsets(t::ZeroTemplate) = (0:t.num_timepoints) .* (t.header_size + t.bytes_per_timepoint) |> collect
+chunks(t::ZeroTemplate) = [zeros(UInt8, t.header_size) for tp in 1:t.num_timepoints]
+expected_file_size(t::ZeroTemplate) = (t.header_size + t.bytes_per_timepoint)*t.num_timepoints
 
 function Base.convert(::Type{BinaryTemplate}, t::AbstractBinaryTemplate)
     return BinaryTemplate(
@@ -188,6 +205,51 @@ function create_h5_upper_uint12()
     return HDF5.Datatype(dt)
 end
 
+function get_template(;
+    sz::Dims = (3456, 816, 17),
+    header_length::Int = 2048,
+    timepoints::AbstractVector{Int} = 0:43,
+    filename::String = "template.h5",
+    dt::HDF5.Datatype = datatype(UInt8)
+)
+    if (
+        sz == (3456, 816, 17) &&
+        header_length == 2048 &&
+        timepoints == 0:43 &&
+        dt == datatype(UInt8)
+    )
+        template_file = joinpath(@__DIR__, "..", "templates", "uint8_3456_816_17_44_header_2048.template")
+        return load_binary_template(template_file)
+    elseif (
+        sz == (1152, 816, 17) &&
+        header_length == 2048 &&
+        timepoints == 0:43 &&
+        dt == create_h5_uint24()
+    )
+        template_file = joinpath(@__DIR__, "..", "templates", "uint24_1152_816_17_44_header_2048.template")
+        return load_binary_template(template_file)
+    else
+        return create_template(; sz, header_length, timepoints, filename, dt)
+    end
+end
+
+function get_template(metadata::MatrixMetadata; dt::Union{HDF5.Datatype,Nothing} = nothing, filename = "template.h5")
+    sz = Tuple(metadata.dimensions_XYZ)
+    header_length = metadata.header_size
+    timepoints = 0:metadata.timepoints_per_stack-1
+    if isnothing(dt)
+        if metadata.bit_depth == 12
+            dt = datatype(UInt8)
+        elseif metadata.bit_depth == 16
+            dt = datatype(UInt16)
+        end
+    end
+    sz1 = first(sz) * metadata.bit_depth ÷ HDF5.h5t_get_size(dt) ÷ 8
+    get_template(; sz = (sz1, sz[2:end]...), header_length, timepoints, filename, dt)
+end
+
+get_uint24_template(; sz::Dims = (1152, 816, 17), kwargs...) = get_template(; dt = create_h5_uint24(), sz, kwargs...)
+get_uint24_template(metadata::MatrixMetadata; dt::HDF5.Datatype = create_h5_uint24(), kwargs...) = get_template(metadata; dt, kwargs...)
 
 function create_template(;
     sz::Dims = (3456, 816, 17),
@@ -334,9 +396,49 @@ function translate_datasets(
     end
 end
 
+function translate_datasets(filename::AbstractString, args...)
+    h5open(filename, "r+") do h5f
+        translate_datasets(h5f, args...)
+    end
+end
+
+function group_datasets(
+    parent::AbstractString,
+    group
+)
+    return h5open(parent, "r+") do h5f
+        group_datasets(h5f, group)
+    end
+end
+
+function group_datasets(
+    parent::Union{HDF5.File, HDF5.Group},
+    group::AbstractString
+)
+    if haskey(parent, group)
+        group = parent[group]
+    else
+        group = create_group(parent, group)
+    end
+    return group_datasets(parent, group)
+end
+
+function group_datasets(
+    parent::Union{HDF5.File, HDF5.Group},
+    group::HDF5.Group
+)
+    for k in keys(parent)
+        m = match(r"TM(\d{7})", k)
+        if !isnothing(m)
+            move_link(parent, k, group)
+        end
+    end
+    return nothing
+end
+
 function apply_template(
     stack_filename::AbstractString,
-    meta_offsets::Vector{Int},
+    meta_offsets::AbstractVector{Int},
     meta_chunks::Vector{Vector{UInt8}};
     truncate_to_filesize::Int = 0
 )
@@ -355,7 +457,7 @@ function apply_template(
     stack_filename::AbstractString,
     t::AbstractBinaryTemplate;
     backup_filename::AbstractString = joinpath("backup", splitext(stack_filename)[1] * "_backup.template"),
-    ensure_zero::Bool = false,
+    ensure_zero::Bool = true,
     truncate::Bool = false
 )
     truncate_to_filesize = 0

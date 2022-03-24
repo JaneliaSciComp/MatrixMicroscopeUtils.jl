@@ -906,6 +906,27 @@ function xml_string(metadata::MatrixMetadata)
     string(generate_xml(metadata))
 end
 
+"""
+    uint32_array_to_uint12
+
+Convert UInt32 array loaded from a UInt24 HDF5 file into a UInt16 representing UInt12s
+"""
+function uint32_array_to_uint12(A::Array{UInt32})
+    sz = size(A)
+    new_sz = ntuple(length(sz)) do i
+        if i == 1
+            return sz[i] * 2
+        else
+            return sz[i]
+        end
+    end
+    colons = ntuple(i->Colon(), length(sz)-1)
+    B = Array{UInt16}(undef, new_sz)
+    B[1:2:end, colons...] = A .& 0xfff
+    B[2:2:end, colons...] = A .>> 12
+    return B
+end
+
 include("links.jl")
 include("chunk.jl")
 include("template.jl")
