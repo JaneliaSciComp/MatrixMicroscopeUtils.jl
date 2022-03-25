@@ -931,4 +931,44 @@ include("links.jl")
 include("chunk.jl")
 include("template.jl")
 
+"""
+    batch_apply_uint24_template()
+    batch_apply_uint24_template(basedir = pwd(); ensure_zero = true, truncate = false)
+
+Apply template to all stack files in the current directory or a specified directory.
+
+The default keywords are the safest. To force the application use
+`batch_apply_uint24_template(ensure_zero = false, truncate = true)`
+
+# Keywords
+
+`ensure_zero`: If `true` ensure that the bytes being overwritten are all zero.
+`truncate`: If the file size is not what is expected by the template, adjust the file size.
+"""
+function batch_apply_uint24_template(basedir = pwd(); kwargs...)
+    stacks = filter(endswith(".stack"), readdir(basedir))
+    m = metadata(first(stacks))
+    uint24_template = BinaryTemplates.get_uint24_template(m) # 24-bit integers (two 12-bit integers), multiple of a byte
+    backups = map(stacks) do stack
+        # Use a regular expression to match the stacks with the format TM0000000
+        regexm = match(r"TM(\d{7})", stack)
+        backup = nothing
+        if !isnothing(regexm)
+            stack = joinpath(basedir, stack)
+            m = metadata(stack)
+            backup = BinaryTemplates.apply_template(stack, uint24_template; kwargs...)
+            tp = parse(Int, first(regexm.captures))
+            if tp > 0
+                BinaryTemplates.translate_datasets(stack, tp)
+            end
+            h5open(stack, "r+") do h5f
+                g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
+                write_cam_metadata_to_hdf5(g, m)
+            end
+        end
+        return backup
+    end
+    return backups
+end
+
 end # module MatrixMicroscopeUtils
