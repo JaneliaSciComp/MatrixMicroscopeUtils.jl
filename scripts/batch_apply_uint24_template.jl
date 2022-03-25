@@ -6,7 +6,7 @@ using ArgParse
 
 s = ArgParseSettings(
     prog="scripts/batch_apply_uint24_template.jl",
-    description="Turn a 12-bit stack with header space into a HDF5 file with 24-bit integers"
+    description="Turn 12-bit stacks with header space in the current directory into a HDF5 file with 24-bit integers"
 )
 
 @add_arg_table! s begin
