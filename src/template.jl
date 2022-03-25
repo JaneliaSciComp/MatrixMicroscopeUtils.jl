@@ -466,7 +466,7 @@ function apply_template(
     if truncate
         truncate_to_filesize = expected_file_size(t)
     else
-        @assert filesize(stack_filename) == expected_file_size(t) "$stack_filename is not the expected size of $(expected_file_size(t))."
+        @assert filesize(stack_filename) <= expected_file_size(t) "$stack_filename is not the expected size of $(expected_file_size(t))."
     end
     backup = backuptemplate(stack_filename, t)
     if ensure_zero
