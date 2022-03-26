@@ -458,7 +458,7 @@ end
 function apply_template(
     stack_filename::AbstractString,
     t::AbstractBinaryTemplate;
-    backup_filename::AbstractString = joinpath("backup", splitext(stack_filename)[1] * "_backup.template"),
+    backup_filename::AbstractString = backup_filename(stack_filename),
     ensure_zero::Bool = true,
     truncate::Bool = false
 )
@@ -479,6 +479,12 @@ function apply_template(
     save(backup, backup_filename, "a")
     apply_template(stack_filename, offsets(t), chunks(t); truncate_to_filesize)
     return backup
+end
+
+function backup_filename(stack_filename)
+    dir = dirname(stack_filename)
+    base = splitext(basename(stack_filename))[1]
+    return joinpath(dir, "backup", base * "_backup.template")
 end
 
 end # module BinaryTemplates
