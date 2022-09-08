@@ -241,7 +241,8 @@ function get_template(metadata::MatrixMetadata; dt::Union{HDF5.Datatype,Nothing}
     timepoints = 0:metadata.timepoints_per_stack-1
     if isnothing(dt)
         if metadata.bit_depth == 12
-            dt = datatype(UInt8)
+            #dt = datatype(UInt8)
+            dt = create_h5_uint24()
         elseif metadata.bit_depth == 16
             dt = datatype(UInt16)
         end
@@ -252,6 +253,10 @@ end
 
 get_uint24_template(; sz::Dims = (1152, 816, 17), kwargs...) = get_template(; dt = create_h5_uint24(), sz, kwargs...)
 get_uint24_template(metadata::MatrixMetadata; dt::HDF5.Datatype = create_h5_uint24(), kwargs...) = get_template(metadata; dt, kwargs...)
+
+get_uint8_template(metadata::MatrixMetadata; dt::HDF5.Datatype = create_h5_uint8(), kwargs...) = get_template(metadata; dt, kwargs...)
+
+
 
 function create_template(;
     sz::Dims = (3456, 816, 17),
