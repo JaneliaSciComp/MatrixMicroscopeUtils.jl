@@ -16,6 +16,11 @@ s = ArgParseSettings(
     "--move", "-m"
         help = "Move the stack file as a HDF5 file. .stack => _uintX.h5"
         action = :store_true
+    "directory"
+        help = "Directory to operate in"
+        arg_type = String
+        required = false
+        default = pwd()
 end
 
 a = parse_args(ARGS, s)
@@ -28,7 +33,8 @@ if a["move"]
 end
 
 try
-    batch_apply_template(; keywords...)
+    println(a["directory"])
+    batch_apply_template(a["directory"]; keywords...)
 catch err
     @error "Application failed" err
     @info "Consider using the -f option, with caution."
