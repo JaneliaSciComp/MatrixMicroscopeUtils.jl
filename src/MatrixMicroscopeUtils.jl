@@ -947,14 +947,14 @@ The default keywords are the safest. To force the application use
 `ensure_zero`: If `true` ensure that the bytes being overwritten are all zero.
 `truncate`: If the file size is not what is expected by the template, adjust the file size.
 """
-function batch_apply_uint24_template(basedir = pwd(); kwargs...)
+function batch_apply_uint24_template(basedir = pwd(); dt = nothing, kwargs...)
     stacks = filter(endswith(".stack"), readdir(basedir))
     if isempty(stacks)
         @info "No stacks were found"
         return;
     end
     m = metadata(first(stacks))
-    uint24_template = BinaryTemplates.get_uint24_template(m) # 24-bit integers (two 12-bit integers), multiple of a byte
+    template = BinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000
         regexm = match(r"TM(\d{7})", stack)
@@ -962,13 +962,17 @@ function batch_apply_uint24_template(basedir = pwd(); kwargs...)
         if !isnothing(regexm)
             stack = joinpath(basedir, stack)
             @info "Applying template to $stack"
-            m = metadata(stack)
-            backup = BinaryTemplates.apply_template(stack, uint24_template; kwargs...)
-            tp = parse(Int, first(regexm.captures))
-            if tp > 0
-                BinaryTemplates.translate_datasets(stack, tp)
+            stack_m = metadata(stack)
+            if stack_m != m
+                m = stack_m
+                template = BinaryTemplates.get_template(m; dt)
             end
+            backup = BinaryTemplates.apply_template(stack, template; kwargs...)
+            tp = parse(Int, first(regexm.captures))
             h5open(stack, "r+") do h5f
+                if tp > 0
+                    BinaryTemplates.translate_datasets(h5f, tp)
+                end
                 g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
                 write_cam_metadata_to_hdf5(g, m)
             end
