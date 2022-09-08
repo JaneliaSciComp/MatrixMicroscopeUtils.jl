@@ -1026,7 +1026,7 @@ function batch_apply_uint24_template(basedir = pwd(); dt = nothing, kwargs...)
         @info "No stacks were found"
         return;
     end
-    m = metadata(first(stacks))
+    m = metadata(joinpath(basedir, first(stacks)))
     template = BinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000
