@@ -1,4 +1,4 @@
-module BinaryTemplates
+module MatrixBinaryTemplates # MatrixMicroscopeUtils.BinaryTemplates
 
 using HDF5
 using Printf
@@ -7,182 +7,14 @@ using CRC32c
 import ..MatrixMicroscopeUtils
 import ..MatrixMicroscopeUtils: MatrixMetadata
 
+using BinaryTemplates
+import BinaryTemplates: AbstractBinaryTemplate
+using HDF5BinaryTemplates
+
 export offsets, chunks, expected_file_size
 export simple_hdf5_template, create_template, apply_template
 export get_template, get_uint24_template
 export translate
-
-abstract type AbstractBinaryTemplate end
-
-struct HeaderOnlyBinaryTemplate <: AbstractBinaryTemplate
-    expected_file_size::Int
-    header::Vector{UInt8}
-end
-offsets(::HeaderOnlyBinaryTemplate) = [0]
-chunks(t::HeaderOnlyBinaryTemplate) = [t.header]
-expected_file_size(t::HeaderOnlyBinaryTemplate) = t.expected_file_size
-
-struct BinaryTemplate <: AbstractBinaryTemplate
-    expected_file_size::Int
-    offsets::Vector{Int}
-    chunks::Vector{Vector{UInt8}}
-end
-offsets(t::BinaryTemplate) = t.offsets
-chunks(t::BinaryTemplate) = t.chunks
-expected_file_size(t::BinaryTemplate) = t.expected_file_size
-
-struct ZeroTemplate <: AbstractBinaryTemplate
-    header_size::Int
-    num_timepoints::Int
-    bytes_per_timepoint::Int
-end
-ZeroTemplate(;
-    header_size = 2048,
-    num_timepoints = 44,
-    bytes_per_timepoint = prod((3456, 816, 17))
-) = ZeroTemplate(header_size, num_timepoints, bytes_per_timepoint)
-ZeroTemplate(m::MatrixMetadata) = ZeroTemplate(m.header_size, m.timepoints_per_stack, prod(Tuple(m.dimensions_XYZ)) * m.bit_depth ÷ 8)
-offsets(t::ZeroTemplate) = (0:t.num_timepoints) .* (t.header_size + t.bytes_per_timepoint) |> collect
-chunks(t::ZeroTemplate) = [zeros(UInt8, t.header_size) for tp in 1:t.num_timepoints]
-expected_file_size(t::ZeroTemplate) = (t.header_size + t.bytes_per_timepoint)*t.num_timepoints
-
-function Base.convert(::Type{BinaryTemplate}, t::AbstractBinaryTemplate)
-    return BinaryTemplate(
-        expected_file_size(t),
-        offsets(t),
-        chunks(t)
-    )
-end
-
-function Base.convert(::Type{HeaderOnlyBinaryTemplate}, t::AbstractBinaryTemplate)
-    @assert offsets(t) == [0] "Template does not have only one chunk at offset 0. Cannot convert to HeaderOnlyBinaryTemplate"
-    return HeaderOnlyBinaryTemplate(
-        expected_file_size(t),
-        first(chunks(t))
-    )
-end
-
-function Base.:(==)(x::AbstractBinaryTemplate, y::AbstractBinaryTemplate)
-    expected_file_size(x) == expected_file_size(y) &&
-    chunks(x) == chunks(y) &&
-    offsets(x) == offsets(y)
-end
-
-function Base.show(io::IO, ::MIME"text/plain", t::AbstractBinaryTemplate)
-    println(io, typeof(t), ":")
-    println(io, "    expected_file_size: $(Base.format_bytes(expected_file_size(t)))")
-    println(io)
-    println(io, "    Offsets            Length     Chunk Checksum")
-    println(io, "    ------------------ ---------- --------------")
-    for (offset, chunk) in zip(offsets(t), chunks(t))
-        @printf(io, "    0x%016x % 10d     0x%08x\n", offset, length(chunk), crc32c(chunk))
-    end
-end
-
-function isexpectedfilesize(filename, t::AbstractBinaryTemplate)
-    return filesize(filename) == expected_file_size(t)
-end
-
-function backuptemplate(filename::AbstractString, t::AbstractBinaryTemplate)
-    offsets, chunks =  open(filename, "r") do io
-        backuptemplate(io, t)
-    end
-    return BinaryTemplate(filesize(filename), offsets, chunks)
-end
-function backuptemplate(io::IO, t::AbstractBinaryTemplate)
-    _offsets = offsets(t)
-    lengths = length.(chunks(t))
-    _chunks = map(_offsets, lengths) do offset, length
-        seek(io, offset)
-        read(io, length)
-    end
-    # If there are extra bytes at the end, backup those up
-    if position(io) < filesize(io)
-        push!(_offsets, position(io))
-        push!(_chunks, read(io, filesize(io) - position(io)))
-    end
-    return _offsets, _chunks
-end
-
-function save(t::AbstractBinaryTemplate, filename::AbstractString, mode = "w")
-    mkpath(dirname(filename))
-    buffer = IOBuffer()
-    let io = buffer
-        write(io, expected_file_size(t))
-        write(io, length(offsets(t)))
-        write(io, offsets(t))
-        write(io, length.(chunks(t)))
-        for chunk in chunks(t)
-            write(io, chunk)
-        end
-    end
-    open(filename, mode) do io
-        write(io, take!(buffer))
-    end
-end
-
-function load(type::Type{BinaryTemplate}, filename::AbstractString, index::Int = 1)
-    template = nothing
-    open(filename, "r") do io
-        for i in 1:index
-            template = load(type, io)
-        end
-    end
-    return template
-end
-
-function load(::Type{BinaryTemplate}, io::IO)
-    expected_file_size = read(io, Int)
-    num = read(io, Int)
-    offsets = Vector{Int}(undef, num)
-    read!(io, offsets)
-    lengths = Vector{Int}(undef, num)
-    read!(io, lengths)
-    chunks = map(lengths) do length
-        read(io, length)
-    end
-    return BinaryTemplate(expected_file_size, offsets, chunks)
-end
-
-load_binary_template(filename::AbstractString, index::Int = 1) = load(BinaryTemplate, filename, index)
-
-"""
-    simple_hdf5_template(h5_filename, dataset_name, datatype, dataspace)
-
-Create or append a HDF5 file with a newly allocated contiguous dataset. The byte offset to the dataset
-is returned.
-
-This function is meant to quickly create a HDF5 file and have an external program fill in the data
-at a specific location (offset) at a later time.
-
-The software filling in the data does not need to load the HDF5 library. It only needs to seek to
-a specific position in the file and start writing data.
-"""
-function simple_hdf5_template(
-    h5_filename::AbstractString,
-    dataset_name::AbstractString,
-    dt::HDF5.Datatype,
-    ds::HDF5.Dataspace
-)
-    header_size = h5open(h5_filename, "cw") do h5f
-        d = create_dataset(h5f, dataset_name, dt, ds; layout = :contiguous, alloc_time = :early)
-        HDF5.API.h5d_get_offset(d.id)
-    end
-    header = open(h5_filename, "r") do f
-        read(f, header_size)
-    end
-    expected_file_size = filesize(h5_filename)
-    return HeaderOnlyBinaryTemplate(expected_file_size, header)
-end
-function simple_hdf5_template(
-    h5_filename::AbstractString,
-    dataset_name::AbstractString,
-    dt::Type,
-    ds::Dims
-)
-    return simple_hdf5_template(h5_filename, dataset_name, datatype(dt), dataspace(ds))
-end
-
 
 function create_h5_uint24()
     dt = HDF5.API.h5t_copy(HDF5.API.H5T_STD_U32LE)
@@ -333,37 +165,6 @@ function create_uint24_template(;
     create_template(; sz, dt, kwargs...)
 end
 
-function template_from_h5(h5_filename)
-    #expected_length = filesize(h5_filename)
-
-    println("Reading $h5_filename")
-    offsets, storage, meta_offsets = h5open(h5_filename, "r") do h5f
-        offsets = [HDF5.API.h5d_get_offset(h5f[k]) for k in keys(h5f) if startswith(k, "TM")]
-        d = diff(offsets)
-        @assert all(d .== first(d))
-    	storage = [HDF5.API.h5d_get_storage_size(h5f[k]) for k in keys(h5f)]
-        # Look for introns, the space between datasets
-        meta_offsets = setdiff(offsets .+ storage, offsets)
-        # Include the first header
-        pushfirst!(meta_offsets, 0)
-        return (offsets, storage, meta_offsets)
-    end
-
-    println("Reading in chunks.")
-    header_length = offsets[1]
-    meta_chunks = open(h5_filename, "r") do template
-        meta_chunks = Vector{Vector{UInt8}}()
-        for mo in meta_offsets
-            seek(template, mo)
-            push!(meta_chunks, read(template, header_length))
-        end
-        return meta_chunks
-    end
-    println("Done.")
-
-    return BinaryTemplate(filesize(h5_filename), meta_offsets, meta_chunks)
-end
-
 function match_timestrings(meta_chunks::Vector{Vector{UInt8}})
     pattern = r"TM(\d{7})"
     matches = map(meta_chunks) do chunk
@@ -492,4 +293,4 @@ function backup_filename(stack_filename)
     return joinpath(dir, "backup", base * "_backup.template")
 end
 
-end # module BinaryTemplates
+end # module MatrixBinaryTemplates
