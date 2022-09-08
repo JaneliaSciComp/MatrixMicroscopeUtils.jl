@@ -20,6 +20,7 @@ export resave_stack_as_uint16_hdf5
 export batch_resave_stacks_as_hdf5
 export batch_apply_uint16_template
 export batch_apply_uint24_template
+export batch_apply_template
 
 # HDF5 v0.16 has a HDF5.API module
 # For HDF5 v0.15, just use HDF5
