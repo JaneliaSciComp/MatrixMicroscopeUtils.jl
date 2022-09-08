@@ -949,12 +949,12 @@ The default keywords are the safest. To force the application use
 `ensure_zero`: If `true` ensure that the bytes being overwritten are all zero.
 `truncate`: If the file size is not what is expected by the template, adjust the file size.
 `dt`: HDF5 datatype
-`rename`: Rename the file from .stack to _uintX.h5
+`move`: Move the file from .stack to _uintX.h5
 """
 function batch_apply_template(
     basedir = pwd();
     dt = nothing,
-    rename::Bool = false,
+    move::Bool = false,
     kwargs...
 )
     stacks = filter(endswith(".stack"), readdir(basedir))
@@ -985,7 +985,7 @@ function batch_apply_template(
                 g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
                 write_cam_metadata_to_hdf5(g, m)
             end
-            if rename
+            if move
                 tag::String = ""
                 if m.bit_depth == 16
                     tag = "_uint16"

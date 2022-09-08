@@ -13,8 +13,8 @@ s = ArgParseSettings(
     "--force", "-f"
         help = "Force the application of the template. Use caution."
         action = :store_true
-    "--rename", "-mv"
-        help = "Rename the stack file as a HDF5 file. .stack => _uintX.h5"
+    "--move", "-m"
+        help = "Move the stack file as a HDF5 file. .stack => _uintX.h5"
         action = :store_true
 end
 
@@ -23,8 +23,8 @@ keywords = ()
 if a["force"]
     keywords = (truncate = true, ensure_zero = false)
 end
-if a["rename"]
-    keywords = (keywords..., rename = true)
+if a["move"]
+    keywords = (keywords..., move = true)
 end
 
 try
