@@ -958,12 +958,13 @@ function batch_apply_template(
     move::Bool = false,
     kwargs...
 )
+    cd(basedir)
     stacks = filter(endswith(".stack"), readdir(basedir))
     if isempty(stacks)
         @info "No stacks were found"
         return;
     end
-    m = metadata(first(stacks))
+    m = metadata(joinpath(basedir, first(stacks)))
     template = BinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000

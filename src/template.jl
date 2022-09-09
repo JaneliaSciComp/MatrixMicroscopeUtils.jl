@@ -8,7 +8,7 @@ import ..MatrixMicroscopeUtils
 import ..MatrixMicroscopeUtils: MatrixMetadata
 
 using BinaryTemplates
-import BinaryTemplates: AbstractBinaryTemplate
+import BinaryTemplates: AbstractBinaryTemplate, backuptemplate, save, apply_template, backup_filename
 using HDF5BinaryTemplates
 
 export offsets, chunks, expected_file_size
@@ -118,7 +118,7 @@ function create_template(;
 
     # Next create a template file with some of the spacers set to length zero
     println("Refining template for regular offsets...")
-    offsets, storage, meta_offsets = h5open(filename, "w") do h5f
+    h5open(filename, "w") do h5f
         datasets = HDF5.Dataset[]
         for i in timepoints
             ds = create_dataset(h5f, @sprintf("TM%07d", i), dt, sz; alloc_time = :early)
@@ -129,32 +129,9 @@ function create_template(;
                 push!(datasets, spacer)
             end
         end
-    	offsets = [HDF5.API.h5d_get_offset(ds) for ds in datasets]
-        d = diff([HDF5.API.h5d_get_offset(h5f[k]) for k in keys(h5f) if startswith(k, "TM")])
-        @assert all(d .== expected_length)
-    	storage = [HDF5.API.h5d_get_storage_size(ds) for ds in datasets]
-        # Look for introns, the space between datasets
-        meta_offsets = setdiff(offsets .+ storage, offsets)
-        # Include the first header
-        pushfirst!(meta_offsets, 0)
-        return (offsets, storage, meta_offsets)
     end
 
-    # Read in header_length chunks at the meta_offsets
-    println("Reading in chunks.")
-    meta_chunks = open(filename, "r") do template
-        meta_chunks = Vector{Vector{UInt8}}()
-        for mo in meta_offsets
-            seek(template, mo)
-            push!(meta_chunks, read(template, header_length))
-        end
-        return meta_chunks
-    end
-    println("Done.")
-
-    lengths = length.(meta_chunks)
-
-    return BinaryTemplate(filesize(filename), meta_offsets, meta_chunks)
+    return HDF5BinaryTemplates.template_from_h5(filename)
 end
 
 function create_uint24_template(; 
@@ -235,62 +212,13 @@ function group_datasets(
     parent::Union{HDF5.File, HDF5.Group},
     group::HDF5.Group
 )
-    for k in keys(parent)
+    for k in collect(keys(parent))
         m = match(r"TM(\d{7})", k)
         if !isnothing(m)
             move_link(parent, k, group)
         end
     end
     return group
-end
-
-function apply_template(
-    stack_filename::AbstractString,
-    meta_offsets::AbstractVector{Int},
-    meta_chunks::Vector{Vector{UInt8}};
-    truncate_to_filesize::Int = 0
-)
-    open(stack_filename, "r+") do f
-        if truncate_to_filesize > 0
-            truncate(f, truncate_to_filesize)
-        end
-        for (offset, chunk) in zip(meta_offsets, meta_chunks)
-            seek(f, offset)
-            write(f, chunk)
-        end
-    end
-end
-
-function apply_template(
-    stack_filename::AbstractString,
-    t::AbstractBinaryTemplate;
-    backup_filename::AbstractString = backup_filename(stack_filename),
-    ensure_zero::Bool = true,
-    truncate::Bool = false
-)
-    truncate_to_filesize = 0
-    if truncate
-        truncate_to_filesize = expected_file_size(t)
-    else
-        @assert filesize(stack_filename) <= expected_file_size(t) "$stack_filename is not the expected size of $(expected_file_size(t))."
-    end
-    backup = backuptemplate(stack_filename, t)
-    if ensure_zero
-        for chunk in chunks(backup)
-            if !all(==(0), chunk)
-                error("Non-zero value found in $stack_filename when applying template. Use keyword `ensure_zero = false` to override.")
-            end
-        end
-    end
-    save(backup, backup_filename, "a")
-    apply_template(stack_filename, offsets(t), chunks(t); truncate_to_filesize)
-    return backup
-end
-
-function backup_filename(stack_filename)
-    dir = dirname(stack_filename)
-    base = splitext(basename(stack_filename))[1]
-    return joinpath(dir, "backup", base * "_backup.template")
 end
 
 end # module MatrixBinaryTemplates

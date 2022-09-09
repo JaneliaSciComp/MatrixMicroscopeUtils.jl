@@ -38,4 +38,5 @@ try
 catch err
     @error "Application failed" err
     @info "Consider using the -f option, with caution."
+    rethrow()
 end
