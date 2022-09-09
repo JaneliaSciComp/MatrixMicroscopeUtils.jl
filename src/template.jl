@@ -39,6 +39,31 @@ function create_h5_upper_uint12()
     return HDF5.Datatype(dt)
 end
 
+"""
+    load_template_properties(filename = "template.h5")
+
+Load a template from a file and retrieve the following properties
+as a named tuple.
+
+1. size::NTuple{N, Int}
+2. header_length::Int
+3. timepoints::UnitRange{Int}
+4. dt::HDF5.Datatype
+"""
+function load_template_properties(filename::String = "template.h5")
+    h5open(filename) do h5f
+        dataset_names = keys(h5f)
+        dataset = h5f[first(dataset_names)]
+        sz = size(dataset)
+        header_length = Int(HDF5.API.h5d_get_offset(dataset))
+        start = parse(Int, dataset_names[1][3:end])
+        finish = parse(Int, dataset_names[end][3:end])
+        timepoints = start:finish
+        dt = datatype(dataset)
+        return (; sz, header_length, timepoints, dt)
+    end
+end
+
 function get_template(;
     sz::Dims = (3456, 816, 17),
     header_length::Int = 2048,
@@ -63,7 +88,26 @@ function get_template(;
         template_file = joinpath(@__DIR__, "..", "templates", "uint24_1152_816_17_44_header_2048.template")
         return load_binary_template(template_file)
     else
-        return create_template(; sz, header_length, timepoints, filename, dt)
+        used_existing_template = false
+        try
+            if isfile(filename)
+                properties = load_template_properties(filename)
+                if(
+                    sz == properties.sz &&
+                    header_length == properties.header_length &&
+                    timepoints == properties.timepoints &&
+                    dt == properties.dt
+                )
+                    used_existing_template = true
+                    return HDF5BinaryTemplates.template_from_h5(filename)
+                end
+            end
+        catch err
+            @error "Error loading existing template in $filename. Creating a new one..." err
+        end
+        if !used_existing_template
+            return create_template(; sz, header_length, timepoints, filename, dt)
+        end
     end
 end
 

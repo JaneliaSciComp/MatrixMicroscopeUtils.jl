@@ -938,7 +938,7 @@ const BinaryTemplates = MatrixBinaryTemplates
 
 """
     batch_apply_template()
-    batch_apply_template(basedir = pwd(); ensure_zero = true, truncate = false)
+    batch_apply_template(basedir = pwd(); ensure_zero = true, truncate = false, move = false)
 
 Apply template to all stack files in the current directory or a specified directory.
 
@@ -953,8 +953,8 @@ The default keywords are the safest. To force the application use
 `move`: Move the file from .stack to _uintX.h5
 """
 function batch_apply_template(
-    basedir = pwd();
-    dt = nothing,
+    basedir::String = pwd();
+    dt::Union{Nothing, HDF5.Datatype} = nothing,
     move::Bool = false,
     kwargs...
 )
@@ -985,11 +985,17 @@ function batch_apply_template(
 
     return backups
 end
+precompile(batch_apply_template, (String,))
 
+"""
+    _batch_apply_template(stacks, basedir, dt, move; kwargs...)
+
+Internal function to batch process individual substacks
+"""
 function _batch_apply_template(
     stacks::Vector{String},
     basedir::String,
-    dt,
+    dt::Union{Nothing, HDF5.Datatype},
     move::Bool;
     kwargs...
 )
@@ -1037,6 +1043,7 @@ function _batch_apply_template(
     end
     return backups
 end
+precompile(_batch_apply_template, (Vector{String}, String, Nothing, Bool))
 
 """
     batch_apply_uint24_template()
