@@ -964,8 +964,37 @@ function batch_apply_template(
         @info "No stacks were found"
         return;
     end
+
+    stacks_sorted_by_metadata = Dict{String, Vector{String}}()
+
+    for stack in stacks
+        _metadata_filename =  metadata_filename(stack)
+        if !haskey(stacks_sorted_by_metadata, _metadata_filename)
+            stacks_sorted_by_metadata[_metadata_filename] = String[]
+        end
+        push!(stacks_sorted_by_metadata[_metadata_filename], stack)
+    end
+
+    backups = map(sort!(collect(keys(stacks_sorted_by_metadata)))) do _metadata_filename
+        @info "Processing stacks associated with $_metadata_filename"
+        stacks = stacks_sorted_by_metadata[_metadata_filename]
+        _batch_apply_template(stacks, basedir, dt, move; kwargs...)
+    end
+
+    backups = Iterators.flatten(backups)
+
+    return backups
+end
+
+function _batch_apply_template(
+    stacks::Vector{String},
+    basedir::String,
+    dt,
+    move::Bool;
+    kwargs...
+)
     m = metadata(joinpath(basedir, first(stacks)))
-    template = BinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
+    template = MatrixBinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000
         regexm = match(r"TM(\d{7})", stack)
@@ -973,18 +1002,20 @@ function batch_apply_template(
         if !isnothing(regexm)
             stack = joinpath(basedir, stack)
             @info "Applying template to $stack"
+            #=
             stack_m = metadata(stack)
             if stack_m != m
                 m = stack_m
-                template = BinaryTemplates.get_template(m; dt)
+                template = MatrixBinaryTemplates.get_template(m; dt)
             end
-            backup = BinaryTemplates.apply_template(stack, template; kwargs...)
+            =#
+            backup = MatrixBinaryTemplates.apply_template(stack, template; kwargs...)
             tp = parse(Int, first(regexm.captures))
             h5open(stack, "r+") do h5f
                 if tp > 0
-                    BinaryTemplates.translate_datasets(h5f, tp)
+                    MatrixBinaryTemplates.translate_datasets(h5f, tp)
                 end
-                g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
+                g = MatrixBinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
                 write_cam_metadata_to_hdf5(g, m)
             end
             if move
@@ -1028,7 +1059,7 @@ function batch_apply_uint24_template(basedir = pwd(); dt = nothing, kwargs...)
         return;
     end
     m = metadata(joinpath(basedir, first(stacks)))
-    template = BinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
+    template = MatrixBinaryTemplates.get_template(m; dt) # 24-bit integers (two 12-bit integers), multiple of a byte
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000
         regexm = match(r"TM(\d{7})", stack)
@@ -1039,15 +1070,15 @@ function batch_apply_uint24_template(basedir = pwd(); dt = nothing, kwargs...)
             stack_m = metadata(stack)
             if stack_m != m
                 m = stack_m
-                template = BinaryTemplates.get_template(m; dt)
+                template = MatrixBinaryTemplates.get_template(m; dt)
             end
-            backup = BinaryTemplates.apply_template(stack, template; kwargs...)
+            backup = MatrixBinaryTemplates.apply_template(stack, template; kwargs...)
             tp = parse(Int, first(regexm.captures))
             h5open(stack, "r+") do h5f
                 if tp > 0
-                    BinaryTemplates.translate_datasets(h5f, tp)
+                    MatrixBinaryTemplates.translate_datasets(h5f, tp)
                 end
-                g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
+                g = MatrixBinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
                 write_cam_metadata_to_hdf5(g, m)
             end
         end
@@ -1077,7 +1108,7 @@ function batch_apply_uint16_template(basedir = pwd(); kwargs...)
         return;
     end
     m = metadata(first(stacks))
-    uint16_template = BinaryTemplates.get_template(m)
+    uint16_template = MatrixBinaryTemplates.get_template(m)
     backups = map(stacks) do stack
         # Use a regular expression to match the stacks with the format TM0000000
         regexm = match(r"TM(\d{7})", stack)
@@ -1086,13 +1117,13 @@ function batch_apply_uint16_template(basedir = pwd(); kwargs...)
             stack = joinpath(basedir, stack)
             @info "Applying template to $stack"
             m = metadata(stack)
-            backup = BinaryTemplates.apply_template(stack, uint16_template; kwargs...)
+            backup = MatrixBinaryTemplates.apply_template(stack, uint16_template; kwargs...)
             tp = parse(Int, first(regexm.captures))
             if tp > 0
-                BinaryTemplates.translate_datasets(stack, tp)
+                MatrixBinaryTemplates.translate_datasets(stack, tp)
             end
             h5open(stack, "r+") do h5f
-                g = BinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
+                g = MatrixBinaryTemplates.group_datasets(h5f, "CM$(m.cam)")
                 write_cam_metadata_to_hdf5(g, m)
             end
         end
