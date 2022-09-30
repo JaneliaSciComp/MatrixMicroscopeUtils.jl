@@ -22,6 +22,7 @@ UInt12Arrays = "c28d94ed-d5b6-4a5f-906b-ac5b0f674341"
 
 [compat]
 ArgParse = "1"
+BinaryTemplates = "0.1"
 H5Zblosc = "0.1"
 H5Zbzip2 = "0.1"
 H5Zlz4 = "0.1"
