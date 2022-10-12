@@ -51,9 +51,17 @@ mutable struct MatrixMetadata
     experiment_notes::String
     cam::Int
     header_size::Int
+    header_mode::String
     timepoints_per_stack::Int
     metadata_file::String
     xml::String
+    XLong_mm::Float64
+    X_um::Float64
+    Y_um::Float64
+    Z_um::Float64
+    U_deg::Float64
+    V_deg::Float64
+    W_deg::Float64
     MatrixMetadata() = new()
 end
 
@@ -852,14 +860,24 @@ function parse_info_xml(dict::Dict{AbstractString,AbstractString}, cam=extract_c
     s.experiment_notes = dict["experiment_notes"]
     s.metadata_file = get(dict, "metadata_file", "")
     s.header_size = parse(Int, get(dict, "header_size", "0"))
+    s.header_mode = get(dict, "header_mode", "Per timepoint")
     s.timepoints_per_stack = parse(Int, get(dict, "timepoints_per_stack", "0"))
+    s.XLong_mm = parse(Float64, get(dict, "XLong_mm", "0.0"))
+    s.X_um = parse(Float64, get(dict, "X_um", "0.0"))
+    s.Y_um = parse(Float64, get(dict, "Y_um", "0.0"))
+    s.Z_um = parse(Float64, get(dict, "Z_um", "0.0"))
+    s.U_deg = parse(Float64, get(dict, "U_deg", "0.0"))
+    s.V_deg = parse(Float64, get(dict, "V_deg", "0.0"))
+    s.W_deg = parse(Float64, get(dict, "W_deg", "0.0"))
     # Capture the original XML file
     s.xml = get(dict, "xml", xml_string(s))
     s
 end
 
 function extract_cam_number(xmlfilename::AbstractString)
-    m = match(r"cam(\d+).xml", basename(xmlfilename))
+    # Allow for notes in parentheses
+    m = match(r"cam(\d+)(?:\([a-zA-Z ]*\))?.xml", basename(xmlfilename))
+    @assert !isnothing(m) "$xmlfilename is not of the form cam\$N.xml where \$N is the camera number."
     @assert length(m.captures) == 1
     parse(Int, m.captures[1])
 end
@@ -893,6 +911,14 @@ function generate_xml(metadata::MatrixMetadata)
     info_node(xroot, "cam", metadata.cam)
     info_node(xroot, "header_size", metadata.header_size)
     info_node(xroot, "timepoints_per_stack", metadata.timepoints_per_stack)
+    info_node(xroot, "header_mode", metadata.header_mode)
+    info_node(xroot, "XLong_mm", metadata.XLong_mm)
+    info_node(xroot, "X_um", metadata.X_um)
+    info_node(xroot, "Y_um", metadata.Y_um)
+    info_node(xroot, "Z_um", metadata.Z_um)
+    info_node(xroot, "U_deg", metadata.U_deg)
+    info_node(xroot, "V_deg", metadata.V_deg)
+    info_node(xroot, "W_deg", metadata.W_deg)
     xdoc
 end
 
