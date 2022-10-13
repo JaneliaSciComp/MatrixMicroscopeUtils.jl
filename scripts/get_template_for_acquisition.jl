@@ -53,7 +53,7 @@ using MatrixMicroscopeUtils.MatrixBinaryTemplates: get_template, save
 
 metadata = parse_info_xml(xml_metadata_file)
 template = get_template(metadata; filename = hdf5_template_file)
-template_filename = first(splitext(xml_metadata_file)) * ".template"
+template_filename = joinpath(dirname(hdf5_template_file), first(splitext(basename(xml_metadata_file))) * ".template")
 save(template, template_filename)
 @info "Saved compact template to $template_filename"
 

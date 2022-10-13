@@ -214,7 +214,7 @@ function create_template(;
 
     # Next create a template file with some of the spacers set to length zero
     println("Refining template for regular offsets...")
-    h5open(filename, "w") do h5f
+    h5open(filename, "w"; meta_block_size = header_size) do h5f
         datasets = HDF5.Dataset[]
         for i in timepoints
             ds = create_dataset(h5f, @sprintf("TM%07d", i), dt, sz; alloc_time = :early)
