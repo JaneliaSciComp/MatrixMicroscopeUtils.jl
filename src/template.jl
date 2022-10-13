@@ -8,7 +8,7 @@ import ..MatrixMicroscopeUtils
 import ..MatrixMicroscopeUtils: MatrixMetadata
 
 using BinaryTemplates
-import BinaryTemplates: AbstractBinaryTemplate, backuptemplate, save, apply_template, backup_filename
+import BinaryTemplates: AbstractBinaryTemplate, backuptemplate, save, apply_template, backup_filename, load_binary_template
 using HDF5BinaryTemplates
 
 export offsets, chunks, expected_file_size
@@ -46,34 +46,47 @@ Load a template from a file and retrieve the following properties
 as a named tuple.
 
 1. size::NTuple{N, Int}
-2. header_length::Int
+2. header_size::Int
 3. timepoints::UnitRange{Int}
 4. dt::HDF5.Datatype
+5. header_mode ::Symbol
 """
 function load_template_properties(filename::String = "template.h5")
+    println("Loading $filename")
     h5open(filename) do h5f
         dataset_names = keys(h5f)
         dataset = h5f[first(dataset_names)]
+        header_mode = length(dataset_names) != 1 ? :per_timepoint : :single_header
         sz = size(dataset)
-        header_length = Int(HDF5.API.h5d_get_offset(dataset))
-        start = parse(Int, dataset_names[1][3:end])
-        finish = parse(Int, dataset_names[end][3:end])
+        header_size = Int(HDF5.API.h5d_get_offset(dataset))
+        if header_mode == :per_timepoint
+            start = parse(Int, dataset_names[1][3:end])
+            finish = parse(Int, dataset_names[end][3:end])
+        elseif header_mode == :single_header
+            start, finish = map(split(first(dataset_names), '_')) do timepoint_name
+                parse(Int, timepoint_name[3:end])
+            end
+        else
+            error("Unrecognized header mode: $header_mode")
+        end
         timepoints = start:finish
         dt = datatype(dataset)
-        return (; sz, header_length, timepoints, dt)
+        return (; sz, header_size, timepoints, dt, header_mode)
     end
 end
 
 function get_template(;
     sz::Dims = (3456, 816, 17),
-    header_length::Int = 2048,
+    header_size::Int = 2048,
     timepoints::AbstractVector{Int} = 0:43,
     filename::String = "template.h5",
-    dt::HDF5.Datatype = datatype(UInt8)
+    dt::HDF5.Datatype = datatype(UInt8),
+    header_mode::Symbol = :per_timepoint
 )
     if (
         sz == (3456, 816, 17) &&
-        header_length == 2048 &&
+        header_mode == :per_timepoint &&
+        header_size == 2048 &&
         timepoints == 0:43 &&
         dt == datatype(UInt8)
     )
@@ -81,7 +94,8 @@ function get_template(;
         return load_binary_template(template_file)
     elseif (
         sz == (1152, 816, 17) &&
-        header_length == 2048 &&
+        header_mode == :per_timepoint &&
+        header_size == 2048 &&
         timepoints == 0:43 &&
         dt == create_h5_uint24()
     )
@@ -94,9 +108,10 @@ function get_template(;
                 properties = load_template_properties(filename)
                 if(
                     sz == properties.sz &&
-                    header_length == properties.header_length &&
+                    header_size == properties.header_size &&
                     timepoints == properties.timepoints &&
-                    dt == properties.dt
+                    dt == properties.dt &&
+                    header_mode == properties.header_mode
                 )
                     used_existing_template = true
                     return HDF5BinaryTemplates.template_from_h5(filename)
@@ -104,27 +119,57 @@ function get_template(;
             end
         catch err
             @error "Error loading existing template in $filename. Creating a new one..." err
+            rethrow(err)
         end
         if !used_existing_template
-            return create_template(; sz, header_length, timepoints, filename, dt)
+            return create_template(; sz, header_size, timepoints, filename, dt, header_mode)
         end
     end
 end
 
-function get_template(metadata::MatrixMetadata; dt::Union{HDF5.Datatype,Nothing} = nothing, filename = "template.h5")
-    sz = Tuple(metadata.dimensions_XYZ)
-    header_length = metadata.header_size
-    timepoints = 0:metadata.timepoints_per_stack-1
+function get_template(metadata::MatrixMetadata; dt::Union{HDF5.Datatype,Nothing} = nothing, filename::AbstractString = "template.h5")
+    if metadata.header_size == 0
+        error("Metadata header_size is zero. Cannot get template.")
+    end
+
+    # Determine header size and mode
+    header_size = metadata.header_size
+    header_mode = isempty(metadata.header_mode) ||
+                  metadata.header_mode == "Per timepoint" ? :per_timepoint :
+                  metadata.header_mode == "Single header" ? :single_header  :
+                  error("Unknown metadata header mode: $(metadata.header_mode)")
+
+    # Calculate datatype
     if isnothing(dt)
-        if metadata.bit_depth == 12
-            #dt = datatype(UInt8)
+        if metadata.bit_depth == 8
+            dt = datatype(UInt8)
+        elseif metadata.bit_depth == 12
             dt = create_h5_uint24()
         elseif metadata.bit_depth == 16
             dt = datatype(UInt16)
+        else
+            error("Unknown bit_depth in metadata: $(metadata.bit_depth)")
         end
     end
-    sz1 = first(sz) * metadata.bit_depth ÷ HDF5.h5t_get_size(dt) ÷ 8
-    get_template(; sz = (sz1, sz[2:end]...), header_length, timepoints, filename, dt)
+
+    # Calculate size
+    sz = Tuple(metadata.dimensions_XYZ)
+    sz1 = first(sz) * metadata.bit_depth ÷ HDF5.API.h5t_get_size(dt) ÷ 8
+    sz = (sz1, sz[2:end]...)
+
+    # Calculate timepoints
+    timepoints_per_stack = metadata.timepoints_per_stack
+    if timepoints_per_stack == 0
+        max_file_size = 2*1024^3
+        stack_size = prod(sz) * sizeof(dt)
+        if header_mode == :per_timepoint
+            timepoints_per_stack = max_file_size ÷ (stack_size + header_size) 
+        elseif header_mode == :single_header
+            timepoints_per_stack = (max_file_size - header_size) ÷ stack_size
+        end
+    end
+    timepoints = 0:timepoints_per_stack-1
+    get_template(; sz, header_size, timepoints, filename, dt, header_mode)
 end
 
 get_uint24_template(; sz::Dims = (1152, 816, 17), kwargs...) = get_template(; dt = create_h5_uint24(), sz, kwargs...)
@@ -136,21 +181,28 @@ get_uint8_template(metadata::MatrixMetadata; dt::HDF5.Datatype = create_h5_uint8
 
 function create_template(;
     sz::Dims = (3456, 816, 17),
-    header_length::Int = 2048,
+    header_size::Int = 2048,
     timepoints::AbstractVector{Int} = 0:43,
     filename::String = "template.h5",
-    dt::HDF5.Datatype = datatype(UInt8)
+    dt::HDF5.Datatype = datatype(UInt8),
+    header_mode::Symbol = :per_timepoint
 )
-    expected_length = prod(sz)*HDF5.API.h5t_get_size(dt) + header_length
+    if header_mode == :single_header
+        create_single_header_template(; sz, header_size, timepoints, filename, dt)
+        return HDF5BinaryTemplates.template_from_h5(filename)
+    end
+
+    expected_length = prod(sz)*HDF5.API.h5t_get_size(dt) + header_size
 
     # First create a template file with the expected datasets followed by a spacer
+    println("Using $filename as template:")
     println("Creating Naive Template...")
     last_timepoint = last(timepoints)
-    ind = h5open(filename, "w") do h5f
+    ind = h5open(filename, "w"; meta_block_size = header_size) do h5f
         for i in timepoints
             create_dataset(h5f, @sprintf("TM%07d", i), dt, sz; alloc_time = :early)
             if i != last_timepoint
-                create_dataset(h5f, nothing, datatype(UInt8), (header_length,); alloc_time = :early)
+                create_dataset(h5f, nothing, datatype(UInt8), (header_size,); alloc_time = :early)
             end
         end
         # Calculate the difference in the offsets of each real dataset
@@ -168,7 +220,7 @@ function create_template(;
             ds = create_dataset(h5f, @sprintf("TM%07d", i), dt, sz; alloc_time = :early)
             push!(datasets, ds)
             if i != last_timepoint
-                space = i in ind ? 0 : header_length
+                space = i in ind ? 0 : header_size
                 spacer = create_dataset(h5f, nothing, datatype(UInt8), (space,); alloc_time = :early)
                 push!(datasets, spacer)
             end
@@ -184,6 +236,27 @@ function create_uint24_template(;
     kwargs...
 )
     create_template(; sz, dt, kwargs...)
+end
+
+"""
+    create_single_header_template(; sz, header_size, timepoints, filename, dt)
+
+Create a HDF5 template with a single initial header and a single dataset.
+* sz::Tuple - size
+* header_size::Int - length of header in bytes
+* timepoints::AbstractVector{Int} - timepoints included in the file
+"""
+function create_single_header_template(;
+    sz::Dims = (3456, 816, 17),
+    header_size::Int = 2048,
+    timepoints::AbstractVector{Int} = 0:43,
+    filename::String = "template.h5",
+    dt::HDF5.Datatype = datatype(UInt8)
+)
+    full_sz = (sz..., length(timepoints))
+    h5open(filename, "w"; meta_block_size = header_size) do h5f
+        create_dataset(h5f, @sprintf("TM%07d_TM%07d", first(timepoints), last(timepoints)), dt, full_sz, alloc_time = :early)
+    end
 end
 
 function match_timestrings(meta_chunks::Vector{Vector{UInt8}})
@@ -217,11 +290,13 @@ function translate_datasets(
     timepoint_offset::Int
 )
     for k in keys(parent)
-        m = match(r"TM(\d{7})", k)
-        if !isnothing(m)
+        new_name = k
+        matches = eachmatch(r"TM(\d{7})", new_name)
+        for m in matches
             new_t = parse(Int, m.captures[1]) +  timepoint_offset
-            move_link(parent, k, @sprintf("TM%07d", new_t))
+            new_name = replace(new_name, m.match => @sprintf("TM%07d", new_t))
         end
+        move_link(parent, k, new_name)
     end
 end
 

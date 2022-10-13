@@ -12,6 +12,7 @@ using Printf
 using ArgParse
 using Distributed
 using PaddedViews
+using SnoopPrecompile
 
 export MatrixMetadata
 export resave_uint12_stack_as_uint16_hdf5
@@ -1163,6 +1164,10 @@ function batch_apply_uint16_template(basedir = pwd(); kwargs...)
         return backup
     end
     return backups
+end
+
+@precompile_all_calls begin
+    parse_info_xml(joinpath(dirname(@__DIR__), "test", "xml", "headers_2022_09","cam5(single header).xml"))
 end
 
 end # module MatrixMicroscopeUtils
