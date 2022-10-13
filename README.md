@@ -11,6 +11,8 @@ If you have Github authentication, you may be able to add this via the following
 ] add https://github.com/JaneliaSciComp/MatrixMicroscopeUtils.jl.git#main
 ```
 
+# Functions
+
 ## `resave_uint12_stack_as_uint16_hdf5`
 
 ```julia
@@ -84,7 +86,74 @@ julia> resave_uint12_stack_as_uint16_hdf5(filename, chunk = (288, 102, 17), shuf
 # Scripts
 
 * `scripts/install.jl` - Invoke once to instantiate the Julia environment and install all the packages.
+* `scripts/compile.jl` - Optional. Compile a native shared library to speed up execution
+* `scripts/get_template_for_acqusition.jl` - Create a HDF5 template based on a XML file.
 * `scripts/batch_resave.jl` - Batch command to invoke `batch_resave_stacks_as_hdf5()`
+
+## `scripts/compile.jl`
+
+This optional script will produce a native shared dynamic shared library, "matrix_microscope_utils.dll" that can be loaded into Julia with the `-J` option.
+
+For example invoking Julia as follows will result in faster execution of the Julia scripts.
+```julia
+julia -J matrix_microscope_utils.dll scripts/get_template_for_acquisition.jl
+```
+
+## `scripts/get_template_for_acquisition.jl`
+
+```
+$ julia .\scripts\get_template_for_acquisition.jl --help
+  Activating project at `C:\Users\kittisopikulm\.julia\dev\MatrixMicroscopeUtils`
+usage: scripts/get_template_for_acquisition.jl [-h]
+                        [xml_metadata_file] [hdf5_template_file]
+
+Obtain a HDF5 template to be used during acquisition
+
+positional arguments:
+  xml_metadata_file   XML metadata file (default: "")
+  hdf5_template_file  HDF5 template file to create (default: "")
+
+optional arguments:
+  -h, --help          show this help message and exit
+```
+
+Both positional arguments are optional. If `xml_metadata_file` is not provided, the script will look for a single XML file in the current working directory. If `hdf5_template_file` is not created, then a `template.hdf5` file will be created in the same directory as the XML file. Additionally
+a `.template` file with the same name as the XML file will be created containing the compacted metadata chunk locations.
+
+#### Compact Metadata Template Format
+
+The `.template` files are binary templates.
+
+The binary template is saved via code here:
+https://github.com/mkitti/BinaryTemplates.jl/blob/9229650bdcb75b391727a3515a972062461e3730/src/io.jl#L57-L72
+
+Each template consists of a series of offsets and chunks to write at those offsets
+
+All values are little endian.
+1. Expected file size in bytes, Int64
+2. Total number of chunks, N, Int64
+3. Offsets of each chunk (N Int64s)
+4. Length of each chunk (N Int64s)
+5. Concatenated chunk data
+
+##### Single header chunk example
+
+For a single header, four little endian Int64s in the first 32 bytes describe
+the expected file size, number of chunks (1), offset, and length.
+The remaining bytes are the header itself.
+
+* Bytes  0 -  7: Expected file size
+* Bytes  8 - 15: The number of chunks (1)
+* Bytes 16 - 23: The offset of the chunk (0)
+* Bytes 24 - 31: The size of the chunk (the header size, e.g. 2048)
+* Remaining bytes: The header itself (e.g. 2048 bytes)
+
+![Hex editor view of a single chunk header](images/single_header_template_hex_editor.png)
+
+The image above using the hex editor in VS Code shows that the first eight
+bytes indicate a file of length `2006583296` bytes (1.86 GB).
+The actual HDF5 header starts at byte `0x20` (32) with the byte sequence
+`89 48 44 46 0D 0A 1A 0A` per the [HDF5 file specification](https://docs.hdfgroup.org/hdf5/develop/_f_m_t3.html#Superblock).
 
 ## `scripts/batch_resave.jl` Usage Help
 
