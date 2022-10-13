@@ -18,6 +18,7 @@ LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
 Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
 PaddedViews = "5432bcbf-9aad-5242-b902-cca2824c8663"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SnoopPrecompile = "66db9d55-30c0-4569-8b51-7e840670fc0c"
 UInt12Arrays = "c28d94ed-d5b6-4a5f-906b-ac5b0f674341"
 
 [compat]
@@ -30,6 +31,7 @@ HDF5 = "0.16.4"
 LightXML = "0.9"
 PaddedViews = "0.5"
 UInt12Arrays = "0.3"
+SnoopPrecompile = "1"
 julia = "1"
 
 [extras]
