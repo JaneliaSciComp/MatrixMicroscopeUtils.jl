@@ -48,5 +48,27 @@ end
 @info "Detected argument values" xml_metadata_file hdf5_template_file
 
 using MatrixMicroscopeUtils
-metadata = MatrixMicroscopeUtils.parse_info_xml(xml_metadata_file)
-MatrixMicroscopeUtils.MatrixBinaryTemplates.get_template(metadata; filename = hdf5_template_file)
+using MatrixMicroscopeUtils: parse_info_xml
+using MatrixMicroscopeUtils.MatrixBinaryTemplates: get_template, save
+
+metadata = parse_info_xml(xml_metadata_file)
+template = get_template(metadata; filename = hdf5_template_file)
+template_filename = first(splitext(xml_metadata_file)) * ".template"
+save(template, template_filename)
+@info "Saved compact template to $template_filename"
+
+# The binary template is saved via code here:
+# https://github.com/mkitti/BinaryTemplates.jl/blob/9229650bdcb75b391727a3515a972062461e3730/src/io.jl#L57-L72
+#
+# Each template consists of a series of offsets and chunks to write at those offsets
+#
+# All values are little endian
+# 1. Expected file size in bytes, Int64
+# 2. Total number of chunks, N, Int64
+# 3. Offsets of each chunk (N Int64s)
+# 4. Length of each chunk (N Int64s)
+# 5. Concatenated chunk data
+#
+# For a single header, four little endian Int64s in the first 32 bytes describe
+# the expected file size, number of chunks (1), offset, and length.
+# The remaining bytes are the header itself.
