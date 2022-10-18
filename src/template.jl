@@ -119,7 +119,6 @@ function get_template(;
             end
         catch err
             @error "Error loading existing template in $filename. Creating a new one..." err
-            rethrow(err)
         end
         if !used_existing_template
             return create_template(; sz, header_size, timepoints, filename, dt, header_mode)
