@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<push_config version="1.0">
+<info software_version="1.0.02627" />
+<info data_header="" />
+<info cam="0" />
+<specimen_name>
+<info specimen0="test" />
+<info specimen1="test - 0:0:1" />
+<info specimen2="test - 0:0:2" />
+<info specimen3="test - 0:1:2" />
+<info specimen4="test - 0:1:1" />
+<info specimen5="test - 0:1:0" />
+<info specimen6="test - 0:2:0" />
+<info specimen7="test - 0:2:1" />
+<info specimen8="test - 0:2:2" />
+<info specimen9="test - 1:2:2" />
+<info specimen10="test - 1:2:1" />
+<info specimen11="test - 1:2:0" />
+<info specimen12="test - 1:1:0" />
+<info specimen13="test - 1:1:1" />
+<info specimen14="test - 1:1:2" />
+<info specimen15="test - 1:0:2" />
+<info specimen16="test - 1:0:1" />
+<info specimen17="test - 1:0:0" />
+<info specimen18="test - 2:0:0" />
+<info specimen19="test - 2:0:1" />
+<info specimen20="test - 2:0:2" />
+<info specimen21="test - 2:1:2" />
+<info specimen22="test - 2:1:1" />
+<info specimen23="test - 2:1:0" />
+<info specimen24="test - 2:2:0" />
+<info specimen25="test - 2:2:1" />
+<info specimen26="test - 2:2:2" />
+</specimen_name>
+<tile_XYZT_um-deg>
+<info tile0="0.000_0.000_20.000_10.000" />
+<info tile1="0.000_0.000_520.000_10.000" />
+<info tile2="0.000_0.000_1020.000_10.000" />
+<info tile3="0.000_500.000_1020.000_10.000" />
+<info tile4="0.000_500.000_520.000_10.000" />
+<info tile5="0.000_500.000_20.000_10.000" />
+<info tile6="0.000_1000.000_20.000_10.000" />
+<info tile7="0.000_1000.000_520.000_10.000" />
+<info tile8="0.000_1000.000_1020.000_10.000" />
+<info tile9="500.000_1000.000_1020.000_10.000" />
+<info tile10="500.000_1000.000_520.000_10.000" />
+<info tile11="500.000_1000.000_20.000_10.000" />
+<info tile12="500.000_500.000_20.000_10.000" />
+<info tile13="500.000_500.000_520.000_10.000" />
+<info tile14="500.000_500.000_1020.000_10.000" />
+<info tile15="500.000_0.000_1020.000_10.000" />
+<info tile16="500.000_0.000_520.000_10.000" />
+<info tile17="500.000_0.000_20.000_10.000" />
+<info tile18="1000.000_0.000_20.000_10.000" />
+<info tile19="1000.000_0.000_520.000_10.000" />
+<info tile20="1000.000_0.000_1020.000_10.000" />
+<info tile21="1000.000_500.000_1020.000_10.000" />
+<info tile22="1000.000_500.000_520.000_10.000" />
+<info tile23="1000.000_500.000_20.000_10.000" />
+<info tile24="1000.000_1000.000_20.000_10.000" />
+<info tile25="1000.000_1000.000_520.000_10.000" />
+<info tile26="1000.000_1000.000_1020.000_10.000" />
+</tile_XYZT_um-deg><info roi_XY="0_4608_0_2592" />
+<wavelength>
+<info wavelength_ch0="488" />
+<info wavelength_ch1="515" />
+</wavelength>
+<info laser_power="5.00%, 0.00mW" />
+<info exposure_time="0.01" />
+<detection_filter>
+<info detection_filter_ch0="Filter 1" />
+<info detection_filter_ch1="Filter 1" />
+</detection_filter>
+<info dimensions_XYZ="4608x2592x11" />
+<info stack_direction="-Z" />
+<info step="11.000" />
+<info planes="0-10" />
+<info experiment_notes="" />
+<info header_mode="Single header" />
+<info header_size="2048" />
+<info timepoints_per_stack="10" />
+<info timepoints="790" />
+<info bit_depth="12" />
+<info defect_correction="off" />
+</push_config>

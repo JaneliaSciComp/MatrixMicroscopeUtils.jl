@@ -795,9 +795,31 @@ function parse_info_xml_to_dict(xml::XMLDocument)
     r = root(xml)
     dict = attributes_dict(r)
     for e in child_elements(r)
-        @assert name(e) == "info" "An XML element not named \"info\" was detected."
-        attrs = attributes_dict(e)
-        merge!(dict, attrs)
+        e_name = name(e)
+        if e_name == "info"
+            attrs = attributes_dict(e)
+            merge!(dict, attrs)
+        elseif e_name == "specimen_name"
+            @warn "An XML element of $e_name was detected, only using the first specimen name"
+            first_specimen = first(child_elements(e))
+            attrs = attributes_dict(first_specimen)
+            dict["specimen_name"] = first(values(attrs))
+        elseif e_name == "tile_XYZT_um-deg"
+            @warn "An XML element of $e_name was detected, only using the first"
+            first_tile = first(child_elements(e))
+            attrs = attributes_dict(first_tile)
+            dict["tile_XYZ_um"] = first(values(attrs))
+        elseif e_name == "wavelength"
+            @warn "An XML element of $e_name was detected, only using the first"
+            first_wavelength = first(child_elements(e))
+            attrs = attributes_dict(first_wavelength)
+            dict["wavelength_nm"] = first(values(attrs))
+        elseif e_name == "detection_filter"
+            @warn "An XML element of $e_name was detected, only using the first"
+            first_filter = first(child_elements(e))
+            attrs = attributes_dict(first_filter)
+            dict["detection_filter"] = first(values(attrs))
+        end
     end
     dict
 end
@@ -822,9 +844,15 @@ function parse_info_xml(dict::Dict{AbstractString,AbstractString}, cam=extract_c
     s.software_version = dict["software_version"]
     s.data_header = dict["data_header"]
     s.specimen_name = dict["specimen_name"]
-    m = match(r"X?=?(.*)_Y?=?(.*)_Z?=?(.*)", dict["tile_XYZ_um"])
+    # Temporary for Mirror in case this is XYZT
+    m = match(r"X?=?(.*)_Y?=?(.*)_Z?=?(.*)_", dict["tile_XYZ_um"])
+    if m === nothing
+        # Original
+        m = match(r"X?=?(.*)_Y?=?(.*)_Z?=?(.*)", dict["tile_XYZ_um"])
+    end
     s.tile_XYZ_um = NamedTuple{(:X, :Y, :Z)}((parse.(Float64, m.captures)...,))
-    m = match(r"(.*)_(.*)_(.*)", dict["sampling_XYZ_um"])
+    # Default for Mirror microscope
+    m = match(r"(.*)_(.*)_(.*)", get(dict, "sampling_XYZ_um", "0_0_0"))
     if m === nothing
         m = match(r"(.*), (.*), (.*)", dict["sampling_XYZ_um"])
     end
@@ -838,15 +866,26 @@ function parse_info_xml(dict::Dict{AbstractString,AbstractString}, cam=extract_c
     s.channel = parse.(Int, get(dict, "channel", "0"))
     s.wavelength_nm = parse.(Float64, dict["wavelength_nm"])
     m = match(r"(.*)%_(.*)mW", dict["laser_power"])
+    if m === nothing
+        # Mirror microscope
+        m = match(r"(.*)%, (.*)mW", dict["laser_power"])
+    end
     s.laser_power = NamedTuple{(:percent, :mW)}((parse.(Float64, m.captures)...,))
     if haskey(dict, "frame_exposure_time_ms")
         s.frame_exposure_time_ms = parse(Float64, dict["frame_exposure_time_ms"])
-    else
+    elseif haskey(dict, "exposure_time_ms")
         s.frame_exposure_time_ms = parse(Float64, dict["exposure_time_ms"])
+    elseif haskey(dict, "exposure_time")
+        # Mirror microscope
+        s.frame_exposure_time_ms = parse(Float64, dict["exposure_time"])
     end
     s.detection_filter = dict["detection_filter"]
     if haskey(dict, "dimensions_XYZ")
         m = match(r"(.*)_(.*)_(.*)", dict["dimensions_XYZ"])
+        if m === nothing
+            # Mirror microscope
+            m = match(r"(.*)x(.*)x(.*)", dict["dimensions_XYZ"])
+        end
     else
         m = match(r"(.*)x(.*)x(.*)", dict["dimensions_XYZ_cam$cam"])
     end
@@ -862,7 +901,12 @@ function parse_info_xml(dict::Dict{AbstractString,AbstractString}, cam=extract_c
     s.metadata_file = get(dict, "metadata_file", "")
     s.header_size = parse(Int, get(dict, "header_size", "0"))
     s.header_mode = get(dict, "header_mode", "Per timepoint")
-    s.timepoints_per_stack = parse(Int, get(dict, "timepoints_per_stack", "0"))
+    if haskey(dict, "subvolumes_per_stack")
+        # Mirror microscope
+        s.timepoints_per_stack = parse(Int, get(dict, "subvolumes_per_stack", "0"))
+    else
+        s.timepoints_per_stack = parse(Int, get(dict, "timepoints_per_stack", "0"))
+    end
     s.XLong_mm = parse(Float64, get(dict, "XLong_mm", "0.0"))
     s.X_um = parse(Float64, get(dict, "X_um", "0.0"))
     s.Y_um = parse(Float64, get(dict, "Y_um", "0.0"))

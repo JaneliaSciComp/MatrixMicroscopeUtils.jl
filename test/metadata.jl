@@ -9,6 +9,7 @@ xmlfilename_cam8_2022 = joinpath(@__DIR__, "xml/RC_22-01-17/USAF_16bit_20220117_
 xmlfilename_cam2_2022 = joinpath(@__DIR__, "xml/_20220310_110256(header 2048)/cam2.xml")
 xmlfilename_cam5_per_timepoint_2022 = joinpath(@__DIR__, "xml/headers_2022_09/cam5(per timepoint).xml")
 xmlfilename_cam5_single_header_2022 = joinpath(@__DIR__, "xml/headers_2022_09/cam5(single header).xml")
+xmlfilename_cam0_mirror_2022 = joinpath(@__DIR__, "xml/MirrorMicroscope/2022_11_18_from_andy/cam0.xml")
 
 expected_num_children = 29
 get_num_child_elements(xml::XMLDocument) = length(collect(child_elements(root(xml))))
@@ -266,5 +267,47 @@ m2.metadata_file = metadata_cam5_single_header_2022_correct.metadata_file
 @test m2 == metadata_cam5_single_header_2022_correct
 @test get_num_child_elements(generate_xml(m2)) == expected_num_children
 @test get_num_child_elements(parse_string(read(xmlfilename_cam5_single_header_2022, String))) == 29
+
+metadata_cam0_mirror_2022_correct = MatrixMetadata()
+let m = metadata_cam0_mirror_2022_correct
+    m.version = "1.0"
+    m.software_version = "1.0.02627"
+    m.data_header = ""
+    m.specimen_name = "test"
+    m.tile_XYZ_um =  (X = 0.0, Y = 0.0, Z = 20.0)
+    m.sampling_XYZ_um =  (X = 0.0, Y = 0.0, Z = 0.0)
+    m.roi_XY = (left = 0, top = 4608, width = 0, height = 2592)
+    m.channel = 0
+    m.wavelength_nm = 488.0
+    m.laser_power = (percent = 5.0, mW = 0.0)
+    m.frame_exposure_time_ms =  0.01
+    m.detection_filter = "Filter 1"
+    m.dimensions_XYZ =  (X = 4608, Y = 2592, Z = 11)
+    m.stack_direction = "-Z"
+    m.planes = 0:10
+    m.timepoints = 790
+    m.bit_depth = 12
+    m.defect_correction = "off"
+    m.experiment_notes = ""
+    m.cam = 0
+    m.header_size = 2048
+    m.header_mode = "Single header"
+    m.timepoints_per_stack = 10
+    m.metadata_file = xmlfilename_cam0_mirror_2022
+    m.XLong_mm = 0.0
+    m.X_um = 0.0
+    m.Y_um = 0.0
+    m.Z_um = 0.0
+    m.U_deg = 0.0
+    m.V_deg = 0.0
+    m.W_deg = 0.0
+    m.xml = read(xmlfilename_cam0_mirror_2022, String)
+end
+@test parse_info_xml(xmlfilename_cam0_mirror_2022) == metadata_cam0_mirror_2022_correct
+m2 = parse_info_xml(generate_xml(metadata_cam5_single_header_2022_correct))
+m2.metadata_file = metadata_cam5_single_header_2022_correct.metadata_file
+@test m2 == metadata_cam5_single_header_2022_correct
+@test get_num_child_elements(generate_xml(m2)) == expected_num_children
+@test get_num_child_elements(parse_string(read(xmlfilename_cam0_mirror_2022, String))) == 21
 
 end
